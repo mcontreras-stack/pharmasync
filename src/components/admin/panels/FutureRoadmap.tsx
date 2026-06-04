@@ -47,7 +47,7 @@ export default function FutureRoadmap() {
       tagline: 'Salas de consulta virtual en tiempo real (WebRTC/Twilio Rooms)',
       dbTables: ['telemed_sessions', 'session_tokens', 'consultation_notes'],
       endpoints: ['POST /api/v1/telemed/create-room', 'GET /api/v1/telemed/session-status'],
-      architectureDesc: 'Habilitará videollamadas HIPAA-compliant directamente en el portal web de PharmaSync. Integrará servidores WebRTC para conexiones punto a punto cifradas de extremo a extremo, facilitando controles prenatales remotos y consultas de urgencias pediátricas leves.',
+      architectureDesc: 'Habilitará videollamadas HIPAA-compliant directamente en el portal web de Vitara Health. Integrará servidores WebRTC para conexiones punto a punto cifradas de extremo a extremo, facilitando controles prenatales remotos y consultas de urgencias pediátricas leves.',
       colorClass: 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100/50'
     },
     {
@@ -67,7 +67,7 @@ export default function FutureRoadmap() {
       tagline: 'Planes corporativos para el acompañamiento de maternidad en empleadas',
       dbTables: ['corporate_accounts', 'employee_registries', 'corporate_benefits'],
       endpoints: ['GET /api/v1/corporate/analytics', 'POST /api/v1/corporate/invite-employee'],
-      architectureDesc: 'Proveerá un panel corporativo para empresas que contraten PharmaSync como beneficio de bienestar para sus empleadas embarazadas, promoviendo el acompañamiento clínico, la reducción del ausentismo laboral y la reincorporación segura tras la licencia por maternidad.',
+      architectureDesc: 'Proveerá un panel corporativo para empresas que contraten Vitara Health como beneficio de bienestar para sus empleadas embarazadas, promoviendo el acompañamiento clínico, la reducción del ausentismo laboral y la reincorporación segura tras la licencia por maternidad.',
       colorClass: 'text-slate-700 bg-slate-100 hover:bg-slate-200/50'
     },
     {
@@ -94,7 +94,7 @@ export default function FutureRoadmap() {
           Mapa de Ruta y Extensibilidad del Ecosistema SaaS
         </h2>
         <p className="text-[10px] text-gray-400 leading-relaxed max-w-4xl">
-          Nuestra arquitectura Core Postgres se diseñó bajo una filosofía limpia e independiente del dominio para permitir adiciones modulares de negocio en el futuro. Los nuevos dominios (farmacias, laboratorios, prepagas) se conectan mediante claves foráneas a los perfiles base de usuario, garantizando un crecimiento escalable sin alterar la integridad estructural actual de PharmaSync.
+          Nuestra arquitectura Core Postgres se diseñó bajo una filosofía limpia e independiente del dominio para permitir adiciones modulares de negocio en el futuro. Los nuevos dominios (farmacias, laboratorios, prepagas) se conectan mediante claves foráneas a los perfiles base de usuario, garantizando un crecimiento escalable sin alterar la integridad estructural actual de Vitara Health.
         </p>
       </div>
 

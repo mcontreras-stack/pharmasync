@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { getMockDb } from '@/lib/mockDb';
 import {
   Activity,
@@ -11,21 +11,25 @@ import {
   ShieldCheck,
   TrendingUp,
   BarChart2,
-  TrendingDown
+  TrendingDown,
+  Layers,
+  Award
 } from 'lucide-react';
+import QualityDashboard from './QualityDashboard';
 
 export default function MedicalAnalytics() {
   const db = getMockDb();
+  const [activeSubTab, setActiveSubTab] = useState<'analytics' | 'quality'>('analytics');
 
   // Calculations
-  const activePregnancies = db.pregnancies.filter(p => p.status === 'active').length;
-  const completedPregnancies = db.pregnancies.filter(p => p.status === 'completed').length;
-  const totalBabies = db.babies.length;
+  const activePregnancies = db.pregnancies?.filter(p => p.status === 'active').length || 0;
+  const completedPregnancies = db.pregnancies?.filter(p => p.status === 'completed').length || 0;
+  const totalBabies = db.babies?.length || 0;
   
-  const prenatalVisitsCount = db.prenatal_visits.length;
-  const pediatricVisitsCount = db.pediatric_visits.length;
-  const appliedVaccinesCount = db.baby_vaccines.filter(v => v.status === 'applied').length;
-  const pendingVaccinesCount = db.baby_vaccines.filter(v => v.status === 'pending').length;
+  const prenatalVisitsCount = db.prenatal_visits?.length || 0;
+  const pediatricVisitsCount = db.pediatric_visits?.length || 0;
+  const appliedVaccinesCount = db.baby_vaccines?.filter(v => v.status === 'applied').length || 0;
+  const pendingVaccinesCount = db.baby_vaccines?.filter(v => v.status === 'pending').length || 0;
 
   // Monthly stats for graph (last 6 months)
   const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
@@ -134,113 +138,139 @@ export default function MedicalAnalytics() {
 
   return (
     <div className="space-y-6">
-      {/* 1. HIPAA DISCLAIMER HEADER */}
-      <div className="bg-slate-900 text-white rounded-3xl p-5 border border-gray-800 shadow-sm flex items-start gap-4">
-        <ShieldCheck className="h-6 w-6 text-emerald-400 shrink-0 mt-0.5" />
-        <div>
-          <h4 className="text-xs font-bold text-slate-100 uppercase tracking-widest">Panel de Inteligencia Médica Anonimizada</h4>
-          <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-            De acuerdo con las regulaciones de la norma HIPAA de privacidad (Privacy Rule) y protección de Datos de Salud Protegidos (PHI), todos los indicadores de este panel se calculan de manera agregada, anonimizada y no rastreable. No se expone información personal ni de identidad clínica directa en esta consola de negocios.
-          </p>
-        </div>
+      {/* Selector subtabs */}
+      <div className="flex border-b border-gray-100 gap-2 pb-1 overflow-x-auto select-none">
+        <button
+          onClick={() => setActiveSubTab('analytics')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold transition-all border-b-2 rounded-t-xl shrink-0 cursor-pointer ${
+            activeSubTab === 'analytics' 
+              ? 'border-slate-800 text-slate-800 bg-slate-50' 
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Layers className="h-4 w-4" />
+          Métricas de Negocio
+        </button>
+        <button
+          onClick={() => setActiveSubTab('quality')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold transition-all border-b-2 rounded-t-xl shrink-0 cursor-pointer ${
+            activeSubTab === 'quality' 
+              ? 'border-slate-800 text-slate-800 bg-slate-50' 
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Award className="h-4 w-4" />
+          Auditoría de Calidad & HIPAA
+        </button>
       </div>
 
-      {/* 2. AGGREGATED METRICS ROW */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Active vs completed pregnancies */}
-        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs flex items-center gap-4">
-          <div className="h-10 w-10 bg-pink-50 text-pink-600 rounded-2xl flex items-center justify-center">
-            <Heart className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[10px] text-gray-400 block font-semibold uppercase tracking-wider">Embarazos Gestionados</span>
-            <span className="text-sm font-black text-gray-855">
-              {activePregnancies} Activos <span className="text-[10px] font-medium text-gray-400">/ {completedPregnancies} Cursados</span>
-            </span>
-          </div>
-        </div>
-
-        {/* Babies count */}
-        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs flex items-center gap-4">
-          <div className="h-10 w-10 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
-            <Baby className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[10px] text-gray-400 block font-semibold uppercase tracking-wider">Bebés Nacidos</span>
-            <span className="text-base font-black text-gray-800">{totalBabies}</span>
-          </div>
-        </div>
-
-        {/* Total doctor appointments */}
-        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs flex items-center gap-4">
-          <div className="h-10 w-10 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center">
-            <Clipboard className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[10px] text-gray-400 block font-semibold uppercase tracking-wider">Consultas Totales</span>
-            <span className="text-base font-black text-gray-800">{prenatalVisitsCount + pediatricVisitsCount}</span>
-          </div>
-        </div>
-
-        {/* Total vaccines */}
-        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs flex items-center gap-4">
-          <div className="h-10 w-10 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center">
-            <Syringe className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[10px] text-gray-400 block font-semibold uppercase tracking-wider">Vacunas Aplicadas</span>
-            <span className="text-sm font-black text-slate-805">
-              {appliedVaccinesCount} dosis <span className="text-[10px] text-gray-400 font-medium">({pendingVaccinesCount} pdtes)</span>
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. CHARTS GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Visits volume bar chart */}
-        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
+      {activeSubTab === 'quality' ? (
+        <QualityDashboard />
+      ) : (
+        <>
+          {/* HIPAA DISCLAIMER HEADER */}
+          <div className="bg-slate-900 text-white rounded-3xl p-5 border border-gray-800 shadow-sm flex items-start gap-4">
+            <ShieldCheck className="h-6 w-6 text-emerald-400 shrink-0 mt-0.5" />
             <div>
-              <h3 className="text-xs font-black text-slate-800">Volumen de Consultas Médicas</h3>
-              <p className="text-[10px] text-gray-400">Distribución de checkups por mes</p>
-            </div>
-            <div className="flex gap-2 text-[9px] font-bold">
-              <span className="text-purple-600">■ Obstetras</span>
-              <span className="text-emerald-600">■ Pediatras</span>
+              <h4 className="text-xs font-bold text-slate-100 uppercase tracking-widest">Panel de Inteligencia Médica Anonimizada</h4>
+              <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                De acuerdo con las regulaciones de la norma HIPAA de privacidad (Privacy Rule) y protección de Datos de Salud Protegidos (PHI), todos los indicadores de este panel se calculan de manera agregada, anonimizada y no rastreable.
+              </p>
             </div>
           </div>
-          {renderBarChart(prenatalVisitsData, pediatricVisitsData, 15)}
-          <div className="flex justify-between mt-2 px-6 text-[9px] text-gray-400 font-semibold">
-            {months.map((m, idx) => (
-              <div key={m} className="text-center">
-                <span>{m}</span>
-                <span className="block text-[8px] font-bold text-slate-650">🏣{prenatalVisitsData[idx]} | 🚼{pediatricVisitsData[idx]}</span>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Vaccines Area Chart */}
-        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-xs font-black text-slate-800">Campañas de Vacunación Completas</h3>
-              <p className="text-[10px] text-gray-400">Total acumulado de dosis administradas a bebés</p>
-            </div>
-            <span className="text-[10px] font-bold text-slate-700 bg-slate-50 px-2 py-0.5 rounded-md">Histórico</span>
-          </div>
-          {renderAreaChart(vaccinesAppliedData, 40, '#0284c7', 'vaccGrad')}
-          <div className="flex justify-between mt-2 px-6 text-[9px] text-gray-400 font-semibold">
-            {months.map((m, idx) => (
-              <div key={m} className="text-center">
-                <span>{m}</span>
-                <span className="block text-[8px] font-bold text-slate-600">{vaccinesAppliedData[idx]} dosis</span>
+          {/* AGGREGATED METRICS ROW */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs flex items-center gap-4">
+              <div className="h-10 w-10 bg-pink-50 text-pink-600 rounded-2xl flex items-center justify-center">
+                <Heart className="h-5 w-5" />
               </div>
-            ))}
+              <div>
+                <span className="text-[10px] text-gray-400 block font-semibold uppercase tracking-wider">Embarazos Activos</span>
+                <span className="text-sm font-black text-gray-800">
+                  {activePregnancies} <span className="text-[10px] font-medium text-gray-400">/ {completedPregnancies} ces.</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs flex items-center gap-4">
+              <div className="h-10 w-10 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
+                <Baby className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-[10px] text-gray-400 block font-semibold uppercase tracking-wider">Bebés Nacidos</span>
+                <span className="text-base font-black text-gray-800">{totalBabies}</span>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs flex items-center gap-4">
+              <div className="h-10 w-10 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center">
+                <Clipboard className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-[10px] text-gray-400 block font-semibold uppercase tracking-wider">Consultas Totales</span>
+                <span className="text-base font-black text-gray-800">{prenatalVisitsCount + pediatricVisitsCount}</span>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs flex items-center gap-4">
+              <div className="h-10 w-10 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center">
+                <Syringe className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-[10px] text-gray-400 block font-semibold uppercase tracking-wider">Vacunas Aplicadas</span>
+                <span className="text-sm font-black text-slate-800">
+                  {appliedVaccinesCount} dos. <span className="text-[10px] text-gray-400 font-medium">({pendingVaccinesCount} pdt.)</span>
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+
+          {/* CHARTS GRID */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-black text-slate-800">Volumen de Consultas Médicas</h3>
+                  <p className="text-[10px] text-gray-400">Distribución de checkups por mes</p>
+                </div>
+                <div className="flex gap-2 text-[9px] font-bold">
+                  <span className="text-purple-600">■ Obstetras</span>
+                  <span className="text-emerald-600">■ Pediatras</span>
+                </div>
+              </div>
+              {renderBarChart(prenatalVisitsData, pediatricVisitsData, 15)}
+              <div className="flex justify-between mt-2 px-6 text-[9px] text-gray-400 font-semibold">
+                {months.map((m, idx) => (
+                  <div key={m} className="text-center">
+                    <span>{m}</span>
+                    <span className="block text-[8px] font-bold text-slate-650">🏣{prenatalVisitsData[idx]} | 🚼{pediatricVisitsData[idx]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-black text-slate-800">Campañas de Vacunación Completas</h3>
+                  <p className="text-[10px] text-gray-400">Total acumulado de dosis administradas a bebés</p>
+                </div>
+                <span className="text-[10px] font-bold text-slate-700 bg-slate-50 px-2 py-0.5 rounded-md">Histórico</span>
+              </div>
+              {renderAreaChart(vaccinesAppliedData, 40, '#0284c7', 'vaccGrad')}
+              <div className="flex justify-between mt-2 px-6 text-[9px] text-gray-400 font-semibold">
+                {months.map((m, idx) => (
+                  <div key={m} className="text-center">
+                    <span>{m}</span>
+                    <span className="block text-[8px] font-bold text-slate-600">{vaccinesAppliedData[idx]} dos.</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

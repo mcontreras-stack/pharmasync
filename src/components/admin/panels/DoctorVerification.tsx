@@ -1,24 +1,21 @@
 'use client';
 
 import React, { useState } from 'react';
-import { getMockDb, saveMockDb, Doctor, ProfessionalDoc } from '@/lib/mockDb';
+import { getMockDb, saveMockDb, Doctor } from '@/lib/mockDb';
 import { useAuth } from '@/context/AuthContext';
 import {
-  FileCheck,
   Check,
   X,
   Clock,
-  AlertTriangle,
-  History,
   FileText,
   MessageSquare,
-  ShieldAlert,
-  Send,
   UserCheck,
   Lock,
-  ThumbsUp,
   FileSearch
 } from 'lucide-react';
+import DoctorActionModal from './DoctorActionModal';
+import DocumentObsModal from './DocumentObsModal';
+import DoctorVerificationArchive from './DoctorVerificationArchive';
 
 export default function DoctorVerification() {
   const { adminSubRole } = useAuth();
@@ -26,7 +23,6 @@ export default function DoctorVerification() {
   
   // Modals / Input states
   const [activeDoctorAction, setActiveDoctorAction] = useState<{ docId: string; type: 'reject' | 'corrections' } | null>(null);
-  const [actionNote, setActionNote] = useState('');
 
   // Individual Doc rejection modal state
   const [rejectingDocId, setRejectingDocId] = useState<string | null>(null);
@@ -105,7 +101,6 @@ export default function DoctorVerification() {
     setDb(updatedDb);
     saveMockDb(updatedDb);
     setActiveDoctorAction(null);
-    setActionNote('');
   };
 
   const handleDocumentStatusChange = (docId: string, nextStatus: 'approved' | 'rejected', notes?: string) => {
@@ -148,7 +143,7 @@ export default function DoctorVerification() {
       <div className="bg-slate-50 border border-gray-150 p-4 rounded-2xl flex items-center justify-between text-xs text-slate-650">
         <div>
           <span className="font-bold text-slate-800">Permisos Activos de Operaciones:</span>
-          <ul className="list-disc list-inside mt-1 space-y-0.5 text-gray-500 font-medium">
+          <ul className="list-disc list-inside mt-1 space-y-0.5 text-gray-550 font-medium">
             <li>Revisar cola de credenciales médicas: <span className="text-emerald-600 font-bold">Sí</span></li>
             <li>Añadir observaciones de calidad técnica: {canObserveQuality ? <span className="text-emerald-600 font-bold">Sí</span> : <span className="text-rose-500">No (Solo Calidad/Superadmin)</span>}</li>
             <li>Aprobar/Rechazar archivos y credenciales finales: {canVerifyDocuments ? <span className="text-emerald-600 font-bold">Sí</span> : <span className="text-rose-500">No (Solo Verificador/Superadmin)</span>}</li>
@@ -337,178 +332,22 @@ export default function DoctorVerification() {
       </div>
 
       {/* 2. REGISTRATION ARCHIVE / OTHER STATES */}
-      <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-4">
-        <h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
-          <History className="h-5 w-5 text-slate-700 shrink-0" />
-          Historial y Archivo de Validaciones
-        </h3>
-        <p className="text-[10px] text-gray-400 font-semibold">Registro histórico de especialistas médicos evaluados.</p>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-gray-150 text-gray-400 font-bold uppercase tracking-wider text-[9px] bg-slate-50/50">
-                <th className="py-3 px-4">Médico</th>
-                <th className="py-3 px-4">Especialidad</th>
-                <th className="py-3 px-4">N° Licencia</th>
-                <th className="py-3 px-4">Estado Verificación</th>
-                <th className="py-3 px-4">Historial de Eventos</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {otherDocs.map(doc => {
-                const profile = db.profiles.find(p => p.id === doc.id);
-                if (!profile) return null;
-
-                let statusBadge = 'bg-emerald-100 text-emerald-700';
-                let statusLabel = 'Aprobado';
-                if (doc.verification_status === 'rejected') {
-                  statusBadge = 'bg-rose-100 text-rose-700';
-                  statusLabel = 'Rechazado';
-                } else if (doc.verification_status === 'pending_corrections') {
-                  statusBadge = 'bg-amber-100 text-amber-700';
-                  statusLabel = 'Requiere Cambios';
-                }
-
-                return (
-                  <tr key={doc.id} className="hover:bg-slate-50/30 transition-colors">
-                    <td className="py-4 px-4 font-bold text-gray-700">{profile.full_name}</td>
-                    <td className="py-4 px-4 capitalize font-semibold text-gray-600">{doc.specialty === 'obstetrician' ? 'Obstetra' : 'Pediatra'}</td>
-                    <td className="py-4 px-4 font-mono text-gray-500">{doc.license_number}</td>
-                    <td className="py-4 px-4">
-                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${statusBadge}`}>
-                        {statusLabel}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 max-w-sm">
-                      <div className="space-y-1.5">
-                        {doc.verification_history && doc.verification_history.length > 0 ? (
-                          doc.verification_history.map((hist, idx) => (
-                            <div key={idx} className="text-[9px] bg-slate-50 p-2 rounded-lg border border-gray-100 leading-normal">
-                              <div className="flex justify-between font-bold text-slate-700 uppercase">
-                                <span>{hist.status === 'approved' ? 'Aprobado' : hist.status === 'rejected' ? 'Rechazado' : 'Observación'}</span>
-                                <span className="text-gray-400 text-[8px] font-normal">{new Date(hist.date).toLocaleDateString('es-ES')}</span>
-                              </div>
-                              <p className="text-gray-550 font-medium mt-0.5">{hist.note}</p>
-                            </div>
-                          ))
-                        ) : (
-                          <span className="text-[10px] text-gray-400 italic font-medium">Sin historial cargado</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <DoctorVerificationArchive otherDocs={otherDocs} profiles={db.profiles} />
 
       {/* MODAL DIALOGUE: REJECT OR REQUEST CORRECTIONS FOR WHOLE DOCTOR */}
-      {activeDoctorAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-white rounded-[32px] border border-gray-100 w-full max-w-md p-6 shadow-2xl relative">
-            <button
-              onClick={() => setActiveDoctorAction(null)}
-              className="absolute right-4 top-4 p-2 text-gray-400 hover:bg-slate-100 rounded-full transition-colors"
-            >
-              <X className="h-4.5 w-4.5" />
-            </button>
-
-            <h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
-              <ShieldAlert className={`h-4.5 w-4.5 ${activeDoctorAction.type === 'reject' ? 'text-rose-500' : 'text-amber-500'}`} />
-              {activeDoctorAction.type === 'reject' ? 'Rechazar Solicitud Médica' : 'Solicitar Correcciones de Documentación'}
-            </h3>
-            <p className="text-[10px] text-gray-400 mt-1">Escribe la justificación o los requisitos faltantes. Esto se notificará al médico.</p>
-
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Descripción / Nota</label>
-                <textarea
-                  value={actionNote}
-                  onChange={(e) => setActionNote(e.target.value)}
-                  placeholder={activeDoctorAction.type === 'reject' ? 'Ej. El exequátur ingresado no coincide con el padrón del Ministerio de Salud Pública.' : 'Ej. Vuelva a subir su título universitario en un archivo PDF legible.'}
-                  className="w-full h-24 bg-slate-50 border border-gray-150 rounded-xl p-3 text-xs font-semibold focus:outline-none focus:bg-white focus:border-slate-400 resize-none text-slate-800"
-                  required
-                />
-              </div>
-
-              <div className="pt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveDoctorAction(null)}
-                  className="flex-1 py-3 border border-gray-250 text-gray-500 rounded-xl text-xs font-bold hover:bg-gray-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => handleStatusChange(
-                    activeDoctorAction.docId,
-                    activeDoctorAction.type === 'reject' ? 'rejected' : 'pending_corrections',
-                    actionNote
-                  )}
-                  className={`flex-1 py-3 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${activeDoctorAction.type === 'reject' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-amber-500 hover:bg-amber-600'}`}
-                >
-                  <Send className="h-3.5 w-3.5" />
-                  Enviar Decisión
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <DoctorActionModal
+        action={activeDoctorAction}
+        onClose={() => setActiveDoctorAction(null)}
+        onSubmit={handleStatusChange}
+      />
 
       {/* MODAL DIALOGUE: REJECT INDIVIDUAL DOCUMENT OR EDIT OBSERVATION */}
-      {rejectingDocId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-white rounded-[32px] border border-gray-150 w-full max-w-md p-6 shadow-2xl relative">
-            <button
-              onClick={() => setRejectingDocId(null)}
-              className="absolute right-4 top-4 p-2 text-gray-400 hover:bg-slate-100 rounded-full transition-colors"
-            >
-              <X className="h-4.5 w-4.5" />
-            </button>
-
-            <h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
-              <MessageSquare className="h-4.5 w-4.5 text-indigo-500" />
-              Observaciones del Documento
-            </h3>
-            <p className="text-[10px] text-gray-400 mt-1">Escriba comentarios sobre el estado técnico o legibilidad de este archivo específico.</p>
-
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Nota de Calidad</label>
-                <textarea
-                  value={docNotes}
-                  onChange={(e) => setDocNotes(e.target.value)}
-                  placeholder="Ej. La imagen está borrosa en la esquina del número de serie. Por favor volver a escanear."
-                  className="w-full h-24 bg-slate-50 border border-gray-150 rounded-xl p-3 text-xs font-semibold focus:outline-none focus:bg-white focus:border-slate-400 resize-none text-slate-800"
-                  required
-                />
-              </div>
-
-              <div className="pt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setRejectingDocId(null)}
-                  className="flex-1 py-3 border border-gray-250 text-gray-500 rounded-xl text-xs font-bold hover:bg-gray-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDocumentStatusChange(rejectingDocId, 'rejected', docNotes)}
-                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <ThumbsUp className="h-3.5 w-3.5" />
-                  Guardar Observación
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <DocumentObsModal
+        documentId={rejectingDocId}
+        initialNotes={docNotes}
+        onClose={() => setRejectingDocId(null)}
+        onSubmit={(docId, notes) => handleDocumentStatusChange(docId, 'rejected', notes)}
+      />
     </div>
   );
 }

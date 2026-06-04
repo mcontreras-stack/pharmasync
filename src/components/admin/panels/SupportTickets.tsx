@@ -2,25 +2,12 @@
 
 import React, { useState } from 'react';
 import { getMockDb, saveMockDb, SupportTicket } from '@/lib/mockDb';
-import {
-  MessageSquare,
-  Clock,
-  UserCheck,
-  CheckCircle,
-  AlertCircle,
-  X,
-  Send,
-  UserPlus,
-  RefreshCw
-} from 'lucide-react';
+import { MessageSquare, Clock, UserCheck, CheckCircle, AlertCircle, X, Send, UserPlus, RefreshCw } from 'lucide-react';
 
 export default function SupportTickets() {
   const [db, setDb] = useState(getMockDb());
-  
-  // Interactive states
   const [activeTicket, setActiveTicket] = useState<SupportTicket | null>(null);
   const [replyText, setReplyText] = useState('');
-  const [agentName, setAgentName] = useState('Admin Juan');
 
   // Stats calculation
   const totalTickets = db.support_tickets.length;
@@ -43,11 +30,10 @@ export default function SupportTickets() {
 
     const updatedTickets = db.support_tickets.map(t => {
       if (t.id === activeTicket.id) {
-        const nextReplies = [...t.replies, newReply];
         return {
           ...t,
-          replies: nextReplies,
-          assigned_to: 'admin-juan-000' // Auto-assign to current admin
+          replies: [...t.replies, newReply],
+          assigned_to: 'admin-juan-000'
         };
       }
       return t;
@@ -57,11 +43,8 @@ export default function SupportTickets() {
     setDb(updatedDb);
     saveMockDb(updatedDb);
 
-    // Update active drawer state
     const refreshedTicket = updatedTickets.find(t => t.id === activeTicket.id);
-    if (refreshedTicket) {
-      setActiveTicket(refreshedTicket);
-    }
+    if (refreshedTicket) setActiveTicket(refreshedTicket);
     setReplyText('');
   };
 
@@ -118,49 +101,20 @@ export default function SupportTickets() {
     <div className="space-y-6">
       {/* 1. SUPPORT STATS GAUGE */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Open tickets */}
-        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs flex items-center gap-4">
-          <div className="h-10 w-10 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
-            <AlertCircle className="h-5 w-5" />
+        {[
+          { label: 'Tickets Abiertos', val: openTickets.length, bg: 'bg-amber-50 text-amber-600', icon: <AlertCircle className="h-5 w-5" /> },
+          { label: 'Tickets Resueltos', val: resolvedTickets.length, bg: 'bg-emerald-50 text-emerald-600', icon: <CheckCircle className="h-5 w-5" /> },
+          { label: 'Tiempo Promedio Rpta', val: avgResponseTime, bg: 'bg-purple-50 text-purple-600', icon: <Clock className="h-5 w-5" /> },
+          { label: 'Calificación Servicio', val: satisfactionRate, bg: 'bg-sky-50 text-sky-600', icon: <MessageSquare className="h-5 w-5" /> }
+        ].map((c, i) => (
+          <div key={i} className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs flex items-center gap-4">
+            <div className={`h-10 w-10 rounded-2xl flex items-center justify-center ${c.bg}`}>{c.icon}</div>
+            <div>
+              <span className="text-[10px] text-gray-400 block font-semibold uppercase tracking-wider">{c.label}</span>
+              <span className="text-xl font-black text-gray-800">{c.val}</span>
+            </div>
           </div>
-          <div>
-            <span className="text-[10px] text-gray-400 block font-semibold uppercase tracking-wider">Tickets Abiertos</span>
-            <span className="text-xl font-black text-gray-800">{openTickets.length}</span>
-          </div>
-        </div>
-
-        {/* Closed tickets */}
-        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs flex items-center gap-4">
-          <div className="h-10 w-10 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
-            <CheckCircle className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[10px] text-gray-400 block font-semibold uppercase tracking-wider">Tickets Resueltos</span>
-            <span className="text-xl font-black text-gray-800">{resolvedTickets.length}</span>
-          </div>
-        </div>
-
-        {/* Avg Response Time */}
-        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs flex items-center gap-4">
-          <div className="h-10 w-10 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center">
-            <Clock className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[10px] text-gray-400 block font-semibold uppercase tracking-wider">Tiempo Promedio Rpta</span>
-            <span className="text-xl font-black text-gray-800">{avgResponseTime}</span>
-          </div>
-        </div>
-
-        {/* Customer Satisfaction */}
-        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs flex items-center gap-4">
-          <div className="h-10 w-10 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center">
-            <MessageSquare className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[10px] text-gray-400 block font-semibold uppercase tracking-wider">Calificación Servicio</span>
-            <span className="text-xl font-black text-gray-800">{satisfactionRate}</span>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* 2. TICKETS QUEUE BOARD */}

@@ -2,19 +2,9 @@
 
 import React, { useState } from 'react';
 import { getMockDb, saveMockDb, Profile } from '@/lib/mockDb';
-import {
-  Search,
-  UserCheck,
-  UserX,
-  Trash2,
-  Edit2,
-  FileText,
-  UserCheck2,
-  Eye,
-  X,
-  History,
-  AlertCircle
-} from 'lucide-react';
+import { Search, UserCheck, UserX, Trash2, Edit2, FileText, UserCheck2, Eye, X, History, AlertCircle } from 'lucide-react';
+import EditUserModal from './EditUserModal';
+import UserLogsDrawer from './UserLogsDrawer';
 
 export default function UserManagement() {
   const [db, setDb] = useState(getMockDb());
@@ -23,9 +13,6 @@ export default function UserManagement() {
   
   // Drawer & Modal States
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editEmail, setEditEmail] = useState('');
-  
   const [activeLogUser, setActiveLogUser] = useState<Profile | null>(null);
 
   // Filters
@@ -40,29 +27,19 @@ export default function UserManagement() {
   // Action: Suspend / Reactivate
   const toggleSuspension = (userId: string) => {
     const updatedProfiles = db.profiles.map(p => {
-      if (p.id === userId) {
-        const nextStatus = !p.is_suspended;
-        
-        // Log security audit event
-        const newLog = {
-          id: `log-${Date.now()}`,
-          user_id: 'admin-juan-000',
-          event: `${nextStatus ? 'Cuenta Suspendida' : 'Cuenta Reactivada'} para usuario ${p.email}`,
-          ip_address: '190.16.200.45',
-          user_agent: 'Chrome/124.0.0.0 (Windows 11)',
-          created_at: new Date().toISOString(),
-          is_suspicious: false
-        };
-        db.audit_logs = [newLog, ...db.audit_logs];
-
-        return { ...p, is_suspended: nextStatus };
-      }
-      return p;
+      if (p.id !== userId) return p;
+      const nextStatus = !p.is_suspended;
+      const newLog = {
+        id: `log-${Date.now()}`, user_id: 'admin-juan-000', user_email: 'admin@vitarahealth.com', user_role: 'admin',
+        action: nextStatus ? 'suspend_user' : 'reactivate_user', table_affected: 'profiles', record_id: userId,
+        event: `${nextStatus ? 'Cuenta Suspendida' : 'Cuenta Reactivada'} para usuario ${p.email}`,
+        ip_address: '190.16.200.45', user_agent: 'Chrome/124.0.0.0 (Windows 11)', created_at: new Date().toISOString(), is_suspicious: false
+      };
+      db.audit_logs = [newLog, ...db.audit_logs];
+      return { ...p, is_suspended: nextStatus };
     });
-
     const updatedDb = { ...db, profiles: updatedProfiles };
-    setDb(updatedDb);
-    saveMockDb(updatedDb);
+    setDb(updatedDb); saveMockDb(updatedDb);
   };
 
   // Action: Delete Account
@@ -74,10 +51,14 @@ export default function UserManagement() {
     const updatedMothers = db.mothers.filter(m => m.id !== userId);
     const updatedDoctors = db.doctors.filter(d => d.id !== userId);
 
-    // Log security audit event
     const newLog = {
       id: `log-${Date.now()}`,
       user_id: 'admin-juan-000',
+      user_email: 'admin@vitarahealth.com',
+      user_role: 'admin',
+      action: 'delete_user',
+      table_affected: 'profiles',
+      record_id: userId,
       event: `Cuenta eliminada permanentemente: ${targetProfile?.email}`,
       ip_address: '190.16.200.45',
       user_agent: 'Chrome/124.0.0.0 (Windows 11)',
@@ -98,13 +79,12 @@ export default function UserManagement() {
   };
 
   // Action: Save Edit profile detail
-  const handleSaveProfile = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveProfile = (name: string, email: string) => {
     if (!editingProfile) return;
 
     const updatedProfiles = db.profiles.map(p => {
       if (p.id === editingProfile.id) {
-        return { ...p, full_name: editName, email: editEmail };
+        return { ...p, full_name: name, email: email };
       }
       return p;
     });
@@ -120,13 +100,13 @@ export default function UserManagement() {
     if (typeof window === 'undefined') return;
     
     // Save current admin user so we can return back
-    const currentAdmin = localStorage.getItem('pharmasync_user');
+    const currentAdmin = localStorage.getItem('vitarahealth_user');
     if (currentAdmin) {
-      localStorage.setItem('pharmasync_admin_impersonator', currentAdmin);
+      localStorage.setItem('vitarahealth_admin_impersonator', currentAdmin);
     }
     
     // Set active session user to target profile
-    localStorage.setItem('pharmasync_user', JSON.stringify(targetUser));
+    localStorage.setItem('vitarahealth_user', JSON.stringify(targetUser));
     
     // Reload page to switch route view scopes immediately
     window.location.reload();
@@ -251,11 +231,7 @@ export default function UserManagement() {
 
                         {/* Edit details */}
                         <button
-                          onClick={() => {
-                            setEditingProfile(profile);
-                            setEditName(profile.full_name);
-                            setEditEmail(profile.email);
-                          }}
+                          onClick={() => setEditingProfile(profile)}
                           className="p-1.5 bg-gray-100 text-gray-500 rounded-lg hover:bg-slate-250 hover:text-slate-800 transition-colors"
                           title="Editar detalles"
                         >
@@ -302,128 +278,17 @@ export default function UserManagement() {
         </table>
       </div>
 
-      {/* MODAL: EDIT USER PROFILE */}
-      {editingProfile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-white rounded-[32px] border border-gray-100 w-full max-w-md p-6 shadow-2xl relative">
-            <button
-              onClick={() => setEditingProfile(null)}
-              className="absolute right-4 top-4 p-2 text-gray-400 hover:bg-slate-100 rounded-full transition-colors"
-            >
-              <X className="h-4.5 w-4.5" />
-            </button>
+      <EditUserModal
+        profile={editingProfile}
+        onClose={() => setEditingProfile(null)}
+        onSave={handleSaveProfile}
+      />
 
-            <h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
-              <Edit2 className="h-4 w-4 text-slate-700" />
-              Editar Perfil de Usuario
-            </h3>
-            <p className="text-[10px] text-gray-400 mt-0.5">Modifica los datos del expediente general de la cuenta</p>
-
-            <form onSubmit={handleSaveProfile} className="mt-4 space-y-4">
-              <div>
-                <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Nombre Completo</label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full bg-slate-50 border border-gray-150 rounded-xl p-3 text-xs font-semibold focus:outline-none focus:bg-white focus:border-slate-400"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Correo Electrónico</label>
-                <input
-                  type="email"
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  className="w-full bg-slate-50 border border-gray-150 rounded-xl p-3 text-xs font-semibold focus:outline-none focus:bg-white focus:border-slate-400"
-                  required
-                />
-              </div>
-
-              <div className="pt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingProfile(null)}
-                  className="flex-1 py-3 border border-gray-200 text-gray-500 rounded-xl text-xs font-bold hover:bg-gray-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors"
-                >
-                  Guardar Cambios
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* DRAWER: USER ACCESS LOGS */}
-      {activeLogUser && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-white h-screen shadow-2xl p-6 border-l border-gray-100 flex flex-col justify-between animate-slide-in">
-            <div>
-              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                  <History className="h-5 w-5 text-sky-600" />
-                  <div>
-                    <h3 className="text-sm font-black text-slate-800">Bitácora de Seguridad</h3>
-                    <p className="text-[10px] text-sky-600 font-semibold">{activeLogUser.full_name}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setActiveLogUser(null)}
-                  className="p-2 text-gray-400 hover:bg-slate-100 rounded-full transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              {/* Logs loop */}
-              <div className="mt-6 space-y-4 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 scrollbar-thin">
-                {selectedUserLogs.length === 0 ? (
-                  <div className="py-12 text-center text-gray-400 font-medium text-xs flex flex-col items-center gap-2">
-                    <AlertCircle className="h-8 w-8 text-gray-300" />
-                    No hay registros de seguridad guardados para este usuario.
-                  </div>
-                ) : (
-                  selectedUserLogs.map((log) => (
-                    <div
-                      key={log.id}
-                      className={`p-3.5 rounded-2xl border text-xs relative ${log.is_suspicious ? 'bg-rose-50 border-rose-100' : 'bg-slate-50 border-gray-100'}`}
-                    >
-                      {log.is_suspicious && (
-                        <span className="absolute top-3 right-3 text-[8px] bg-rose-500 text-white font-extrabold px-1.5 py-0.5 rounded-md animate-pulse">
-                          Sospechoso
-                        </span>
-                      )}
-                      <h4 className="font-bold text-slate-800 pr-12">{log.event}</h4>
-                      <p className="text-[10px] text-gray-400 mt-1">Origen IP: {log.ip_address}</p>
-                      <p className="text-[9px] text-gray-400 font-mono mt-0.5 truncate" title={log.user_agent}>
-                        UA: {log.user_agent}
-                      </p>
-                      <span className="text-[9px] text-gray-400 block mt-2 text-right font-medium">
-                        {new Date(log.created_at).toLocaleString('es-ES')}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <button
-              onClick={() => setActiveLogUser(null)}
-              className="w-full py-3 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors"
-            >
-              Cerrar Bitácora
-            </button>
-          </div>
-        </div>
-      )}
+      <UserLogsDrawer
+        user={activeLogUser}
+        logs={selectedUserLogs}
+        onClose={() => setActiveLogUser(null)}
+      />
     </div>
   );
 }

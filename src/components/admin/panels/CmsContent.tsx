@@ -2,19 +2,7 @@
 
 import React, { useState } from 'react';
 import { getMockDb, saveMockDb, CmsArticle } from '@/lib/mockDb';
-import {
-  Bookmark,
-  Plus,
-  Search,
-  Filter,
-  CheckCircle,
-  Clock,
-  Trash2,
-  FileText,
-  X,
-  Send,
-  Eye
-} from 'lucide-react';
+import { Bookmark, Plus, Search, Filter, CheckCircle, Clock, Trash2, FileText, X, Send, Eye } from 'lucide-react';
 
 export default function CmsContent() {
   const [db, setDb] = useState(getMockDb());
@@ -95,12 +83,8 @@ export default function CmsContent() {
     saveMockDb(updatedDb);
 
     // Reset fields
-    setNewTitle('');
-    setNewCategory('Pregnancy');
-    setNewContent('');
-    setNewTagsStr('');
-    setNewStatus('draft');
-    setIsCreating(false);
+    setNewTitle(''); setNewCategory('Pregnancy'); setNewContent('');
+    setNewTagsStr(''); setNewStatus('draft'); setIsCreating(false);
   };
 
   return (
@@ -176,7 +160,7 @@ export default function CmsContent() {
 
                 {/* Tags */}
                 <div className="flex flex-wrap gap-1 mt-4">
-                  {art.tags.map(t => (
+                  {art.tags?.map((t: string) => (
                     <span key={t} className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg font-medium">
                       #{t}
                     </span>

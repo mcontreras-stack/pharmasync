@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { getMockDb, saveMockDb, Subscription } from '@/lib/mockDb';
+import { getMockDb, saveMockDb, SaaSSubscription } from '@/lib/mockDb';
 import {
   CreditCard,
   DollarSign,

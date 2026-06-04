@@ -2,20 +2,7 @@
 
 import React from 'react';
 import { getMockDb, MOCK_MOTHER_ID, MOCK_OBSTETRICIAN_ID, MOCK_PEDIATRICIAN_ID } from '@/lib/mockDb';
-import {
-  Users,
-  TrendingUp,
-  Heart,
-  Baby,
-  Activity,
-  ArrowUpRight,
-  ArrowDownRight,
-  DollarSign,
-  UserPlus,
-  Percent,
-  UserX,
-  Sparkles
-} from 'lucide-react';
+import { Users, TrendingUp, Heart, Baby, Activity, ArrowUpRight, ArrowDownRight, DollarSign, UserPlus, Percent, UserX, Sparkles } from 'lucide-react';
 
 export default function ExecutiveDashboard() {
   const db = getMockDb();

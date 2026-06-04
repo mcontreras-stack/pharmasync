@@ -30,8 +30,9 @@ export default function AiAutomation() {
   const [autoChatSummaries, setAutoChatSummaries] = useState(false);
 
   // Stats
-  const totalCalls = db.ai_usage_stats.length;
-  const totalCost = db.ai_usage_stats.reduce((acc, c) => acc + c.cost_usd, 0);
+  const interactions = db.ai_interactions || [];
+  const totalCalls = interactions.length;
+  const totalCost = interactions.reduce((acc, c) => acc + c.cost_usd, 0);
 
   const handleSaveAutomation = (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,19 +164,23 @@ export default function AiAutomation() {
           <p className="text-[10px] text-gray-400">Detalle de llamadas de API por usuario</p>
 
           <div className="space-y-3 overflow-y-auto max-h-[300px] pr-1 scrollbar-thin">
-            {db.ai_usage_stats.map(usage => (
-              <div key={usage.id} className="p-3 bg-slate-50 border border-gray-100 rounded-2xl text-[10px]">
-                <div className="flex justify-between font-bold text-slate-750">
-                  <span>Usuario: {usage.user_name}</span>
-                  <span className="text-purple-600 font-mono capitalize">{usage.model}</span>
+            {interactions.map(usage => {
+              const profile = db.profiles.find(p => p.id === usage.user_id);
+              const userName = profile ? profile.full_name : 'Usuario';
+              return (
+                <div key={usage.id} className="p-3 bg-slate-50 border border-gray-100 rounded-2xl text-[10px]">
+                  <div className="flex justify-between font-bold text-slate-750">
+                    <span>Usuario: {userName}</span>
+                    <span className="text-purple-600 font-mono capitalize">GPT-4o</span>
+                  </div>
+                  <p className="text-gray-450 mt-1">Tokens: {usage.tokens_prompt} prompt / {usage.tokens_completion} compl.</p>
+                  <div className="flex justify-between mt-2 pt-1.5 border-t border-gray-150/60 font-semibold text-gray-400 text-[9px]">
+                    <span className="text-emerald-600">Costo: ${usage.cost_usd.toFixed(5)}</span>
+                    <span>{new Date(usage.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
                 </div>
-                <p className="text-gray-450 mt-1">Tokens: {usage.tokens_prompt} prompt / {usage.tokens_completion} compl.</p>
-                <div className="flex justify-between mt-2 pt-1.5 border-t border-gray-150/60 font-semibold text-gray-400 text-[9px]">
-                  <span className="text-emerald-600">Costo: ${usage.cost_usd.toFixed(5)}</span>
-                  <span>{new Date(usage.timestamp).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

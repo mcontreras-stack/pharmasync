@@ -2,17 +2,7 @@
 
 import React, { useState } from 'react';
 import { getMockDb, saveMockDb } from '@/lib/mockDb';
-import {
-  Bell,
-  Send,
-  Users,
-  Smartphone,
-  Mail,
-  MessageSquare,
-  CheckCircle2,
-  Trash2,
-  Sparkles
-} from 'lucide-react';
+import { Bell, Send, Users, Smartphone, Mail, MessageSquare, CheckCircle2, Trash2, Sparkles } from 'lucide-react';
 
 interface CampaignLog {
   id: string;
@@ -24,46 +14,23 @@ interface CampaignLog {
   delivered_count: number;
 }
 
+const INITIAL_CAMPAIGNS: CampaignLog[] = [
+  { id: 'camp-1', title: 'Actualización importante del Calendario de Vacunación', content: 'Estimados padres, se ha incorporado la nueva dosis de refuerzo del virus sincitial respiratorio de forma obligatoria.', channels: ['push', 'in_app'], segments: ['mothers'], sent_at: '2026-05-28T09:30:00Z', delivered_count: 1 },
+  { id: 'camp-2', title: 'Acuerdo de Socio Comercial (BAA) obligatoria para médicos', content: 'Estimados profesionales de la salud, deben convalidar sus acuerdos de privacidad firmados antes del 10 de junio.', channels: ['email'], segments: ['obstetricians', 'pediatricians'], sent_at: '2026-06-01T15:00:00Z', delivered_count: 2 }
+];
+
 export default function GlobalNotifications() {
   const [db, setDb] = useState(getMockDb());
-  
-  // Notification form state
   const [notifTitle, setNotifTitle] = useState('');
   const [notifContent, setNotifContent] = useState('');
-  
-  // Channels selection
   const [pushSelected, setPushSelected] = useState(true);
   const [emailSelected, setEmailSelected] = useState(false);
   const [appSelected, setAppSelected] = useState(true);
-
-  // Segments selection
   const [segMothers, setSegMothers] = useState(true);
   const [segObstetricians, setSegObstetricians] = useState(false);
   const [segPediatricians, setSegPediatricians] = useState(false);
   const [segPremiumOnly, setSegPremiumOnly] = useState(false);
-
-  // Past campaigns log saved in states (seeded initially)
-  const [campaigns, setCampaigns] = useState<CampaignLog[]>([
-    {
-      id: 'camp-1',
-      title: 'Actualización importante del Calendario de Vacunación',
-      content: 'Estimados padres, se ha incorporado la nueva dosis de refuerzo del virus sincitial respiratorio de forma obligatoria.',
-      channels: ['push', 'in_app'],
-      segments: ['mothers'],
-      sent_at: '2026-05-28T09:30:00Z',
-      delivered_count: 1
-    },
-    {
-      id: 'camp-2',
-      title: 'Acuerdo de Socio Comercial (BAA) obligatoria para médicos',
-      content: 'Estimados profesionales de la salud, deben convalidar sus acuerdos de privacidad firmados antes del 10 de junio.',
-      channels: ['email'],
-      segments: ['obstetricians', 'pediatricians'],
-      sent_at: '2026-06-01T15:00:00Z',
-      delivered_count: 2
-    }
-  ]);
-
+  const [campaigns, setCampaigns] = useState<CampaignLog[]>(INITIAL_CAMPAIGNS);
   const [campaignSuccess, setCampaignSuccess] = useState(false);
 
   // Action: Broadcast
@@ -310,18 +277,9 @@ export default function GlobalNotifications() {
                 <p className="text-[9px] text-gray-400 mt-1 leading-normal">{camp.content}</p>
               </div>
 
-              {/* Badges metadata */}
               <div className="flex flex-wrap gap-1.5 text-[8px] font-black uppercase">
-                {camp.channels.map(chan => (
-                  <span key={chan} className="bg-slate-200 text-slate-600 px-1.5 py-0.25 rounded-md">
-                    {chan}
-                  </span>
-                ))}
-                {camp.segments.map(seg => (
-                  <span key={seg} className="bg-purple-100 text-purple-700 px-1.5 py-0.25 rounded-md">
-                    {seg}
-                  </span>
-                ))}
+                {camp.channels.map(chan => <span key={chan} className="bg-slate-200 text-slate-600 px-1.5 py-0.25 rounded-md">{chan}</span>)}
+                {camp.segments.map(seg => <span key={seg} className="bg-purple-100 text-purple-700 px-1.5 py-0.25 rounded-md">{seg}</span>)}
               </div>
 
               {/* Delivery stats */}

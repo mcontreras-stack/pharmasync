@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PharmaSync Mom & Baby",
+  title: "Vitara Health Mom & Baby",
   description: "Plataforma digital para el seguimiento del embarazo, control prenatal y salud pediátrica infantil.",
 };
 

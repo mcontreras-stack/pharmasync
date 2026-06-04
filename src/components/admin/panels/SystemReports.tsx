@@ -41,27 +41,27 @@ export default function SystemReports() {
         db.profiles.forEach(p => {
           csvContent += `"${p.id}","${p.full_name}","${p.email}","${p.role}","${p.is_suspended ? 'Suspendido' : 'Activo'}"\n`;
         });
-        filename = `pharmasync_usuarios_${Date.now()}.csv`;
+        filename = `vitarahealth_usuarios_${Date.now()}.csv`;
       } else if (reportTarget === 'doctors') {
         csvContent = 'ID,Nombre,Especialidad,Licencia,Estado Verificacion\n';
         db.doctors.forEach(d => {
           const profile = db.profiles.find(p => p.id === d.id);
           csvContent += `"${d.id}","${profile?.full_name || 'Desconocido'}","${d.specialty}","${d.license_number}","${d.verification_status}"\n`;
         });
-        filename = `pharmasync_medicos_${Date.now()}.csv`;
+        filename = `vitarahealth_medicos_${Date.now()}.csv`;
       } else if (reportTarget === 'billing') {
         csvContent = 'Suscripcion ID,Usuario,Plan,Monto Pagado,Estado Pago,Vencimiento\n';
         db.subscriptions.forEach(s => {
           const profile = db.profiles.find(p => p.id === s.user_id);
           csvContent += `"${s.id}","${profile?.full_name || 'Desconocido'}","${s.plan_name}",${s.price_paid},"${s.payment_status}","${s.end_date}"\n`;
         });
-        filename = `pharmasync_facturacion_${Date.now()}.csv`;
+        filename = `vitarahealth_facturacion_${Date.now()}.csv`;
       } else {
         csvContent = 'ID,Email,Evento,IP,Fecha,Sospechoso\n';
         db.audit_logs.forEach(log => {
           csvContent += `"${log.id}","${log.email || log.user_id || 'N/A'}","${log.event}","${log.ip_address}","${log.created_at}",${log.is_suspicious}\n`;
         });
-        filename = `pharmasync_auditoria_seguridad_${Date.now()}.csv`;
+        filename = `vitarahealth_auditoria_seguridad_${Date.now()}.csv`;
       }
 
       // Convert to blob and download if CSV, otherwise simulate excel/pdf download

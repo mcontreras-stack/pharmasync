@@ -25,18 +25,20 @@ export default function ModerationSecurity() {
 
   // Filters
   const filteredLogs = db.audit_logs.filter(log => {
+    const logEvent = log.event || log.action || '';
+    const logEmail = log.email || log.user_email || '';
     const matchesSearch = 
-      log.event.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (log.email && log.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      logEvent.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      logEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
       log.ip_address.includes(searchQuery);
 
     let matchesFilter = true;
     if (filterType === 'success') {
-      matchesFilter = log.event.includes('exitoso');
+      matchesFilter = logEvent.includes('exitoso') || logEvent.includes('update') || logEvent.includes('create');
     } else if (filterType === 'failed') {
-      matchesFilter = log.event.includes('fallido') || log.event.includes('bloqueado');
+      matchesFilter = logEvent.includes('fallido') || logEvent.includes('bloqueado');
     } else if (filterType === 'chart') {
-      matchesFilter = log.event.includes('expediente');
+      matchesFilter = logEvent.includes('expediente') || log.table_affected === 'clinical_histories';
     }
 
     return matchesSearch && matchesFilter;
@@ -152,14 +154,18 @@ export default function ModerationSecurity() {
               No hay registros de auditoría que coincidan con la búsqueda.
             </div>
           ) : (
-            filteredLogs.map(log => (
+            filteredLogs.map(log => {
+            const logEvent = log.event || log.action || '';
+            const logEmail = log.email || log.user_email || '';
+            const logUserAgent = log.user_agent || 'Sistema';
+            return (
               <div
                 key={log.id}
                 className={`p-4 rounded-3xl border transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${log.is_suspicious ? 'bg-rose-50 border-rose-100 hover:bg-rose-100/50' : 'bg-slate-50 border-gray-100 hover:bg-slate-100/60'}`}
               >
                 <div className="space-y-1.5 flex-1 pr-12">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-bold text-gray-800 text-xs">{log.event}</span>
+                    <span className="font-bold text-gray-800 text-xs">{logEvent}</span>
                     {log.is_suspicious && (
                       <span className="bg-rose-500 text-white text-[8px] font-extrabold px-1.5 py-0.25 rounded-md animate-pulse">
                         ALERTA DE SEGURIDAD
@@ -167,9 +173,9 @@ export default function ModerationSecurity() {
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-gray-400 font-semibold">
-                    {log.email && <span>Usuario: {log.email}</span>}
+                    {logEmail && <span>Usuario: {logEmail}</span>}
                     <span>IP: {log.ip_address}</span>
-                    <span className="truncate max-w-[280px]" title={log.user_agent}>Navegador: {log.user_agent}</span>
+                    <span className="truncate max-w-[280px]" title={logUserAgent}>Navegador: {logUserAgent}</span>
                   </div>
                 </div>
 
@@ -188,8 +194,8 @@ export default function ModerationSecurity() {
                   )}
                 </div>
               </div>
-            ))
-          )}
+            );
+          }))}
         </div>
       </div>
     </div>

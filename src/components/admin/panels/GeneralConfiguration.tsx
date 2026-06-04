@@ -18,7 +18,7 @@ export default function GeneralConfiguration() {
   const [successMsg, setSuccessMsg] = useState(false);
 
   // Form states
-  const [platformName, setPlatformName] = useState('PharmaSync Mom & Baby');
+  const [platformName, setPlatformName] = useState('Vitara Health Mom & Baby');
   const [smtpServer, setSmtpServer] = useState('smtp.sendgrid.net');
   const [smtpPort, setSmtpPort] = useState('587');
   const [smtpUser, setSmtpUser] = useState('apikey');
