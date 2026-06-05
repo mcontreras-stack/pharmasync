@@ -7,8 +7,8 @@ import { useSearchParams } from 'next/navigation';
 
 function ResetPasswordFormContent() {
   const searchParams = useSearchParams();
-  const emailParam = searchParams.get('email') || '';
-  const codeParam = searchParams.get('code') || '';
+  const emailParam = searchParams?.get('email') || '';
+  const codeParam = searchParams?.get('code') || '';
 
   const { confirmPasswordReset } = useAuth();
   const [email, setEmail] = useState(emailParam);
