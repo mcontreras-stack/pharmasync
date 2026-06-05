@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import { useRouter, usePathname } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { hasAdmins } from '@/services/adminService';
 import { getMockDb, saveMockDb, MOCK_MOTHER_ID, MOCK_OBSTETRICIAN_ID, MOCK_PEDIATRICIAN_ID, MOCK_ADMIN_ID, Profile, Doctor } from '@/lib/mockDb';
@@ -32,16 +32,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isMockMode, setIsMockMode] = useState(true);
   const [adminSubRole, setAdminSubRoleState] = useState<AdminSubRole>('superadmin');
+  
+  // Usar hooks de next/navigation para compatibilidad con App Router
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     async function loadUser() {
       try {
+        // Evitar ejecución durante el build estático si no hay window
+        if (typeof window === 'undefined') return;
+
         // Verificar si hay admins en el sistema
         const adminsExist = await hasAdmins();
 
         // Si no hay admins y no estamos en /setup, redirigir a setup
-        if (!adminsExist && router.pathname !== '/setup' && isSupabaseConfigured()) {
+        if (!adminsExist && pathname !== '/setup' && isSupabaseConfigured()) {
           router.push('/setup');
           setLoading(false);
           return;
@@ -77,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               // Redirección automática según el rol
               redirectByRole(u.role);
             } else {
-              // Fallback: Create dynamic profile row if trigger didn't run
+              // Fallback
               const meta = session.user.user_metadata || {};
               const dProf: Profile = {
                 id: session.user.id,
@@ -104,22 +110,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const redirectByRole = (role: string) => {
-      if (router.pathname === '/setup' || router.pathname === '/login') return;
+      if (pathname === '/setup' || pathname === '/login' || pathname === '/') return;
 
       switch (role) {
         case 'admin':
-          if (!router.pathname.startsWith('/admin')) {
+          if (pathname && !pathname.startsWith('/admin')) {
             router.push('/admin');
           }
           break;
         case 'mother':
-          if (!router.pathname.startsWith('/dashboard')) {
+          if (pathname && !pathname.startsWith('/dashboard')) {
             router.push('/dashboard');
           }
           break;
         case 'obstetrician':
         case 'pediatrician':
-          if (!router.pathname.startsWith('/professional')) {
+          if (pathname && !pathname.startsWith('/professional')) {
             router.push('/professional');
           }
           break;
@@ -129,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     loadUser();
-  }, [router]);
+  }, [router, pathname]);
 
   const setAdminSubRole = (role: AdminSubRole) => {
     setAdminSubRoleState(role);
@@ -158,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Fallback/Forced: Mock Mode
+      // Mock Mode
       const db = getMockDb();
       let mockProfile = db.profiles.find(p => p.email.toLowerCase() === email.toLowerCase());
 
