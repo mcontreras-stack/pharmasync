@@ -1,62 +1,91 @@
 -- =============================================================================
 -- PharmaSync - Script de Configuración de Supabase
 -- EJECUTA ESTO COMPLETO en Supabase Studio > SQL Editor > New Query
+-- Compatible con tablas existentes (agrega columnas faltantes)
 -- =============================================================================
 
+
 -- ─────────────────────────────────────────────────────────────────────────────
--- PASO 1: CREAR LA TABLA PROFILES
+-- PASO 1: CREAR LA TABLA PROFILES (si no existe)
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.profiles (
   id            UUID        PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email         TEXT        NOT NULL,
   full_name     TEXT        NOT NULL DEFAULT '',
-  role          TEXT        NOT NULL DEFAULT 'mother'
-                            CHECK (role IN ('mother', 'obstetrician', 'pediatrician', 'admin')),
-  status        TEXT        NOT NULL DEFAULT 'under_review'
-                            CHECK (status IN ('email_pending', 'under_review', 'pending_documents', 'approved', 'suspended', 'rejected')),
+  role          TEXT        NOT NULL DEFAULT 'mother',
+  status        TEXT        NOT NULL DEFAULT 'under_review',
   phone         TEXT,
-  avatar_url    TEXT,
-  suspension_reason TEXT,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Agregar columnas que pueden no existir en tablas ya creadas
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url        TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS suspension_reason TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at        TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone             TEXT;
+
+-- Agregar constraints de CHECK si no existen (ignorar error si ya existen)
+DO $$
+BEGIN
+  -- Constraint de role
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'profiles_role_check' AND conrelid = 'public.profiles'::regclass
+  ) THEN
+    ALTER TABLE public.profiles
+      ADD CONSTRAINT profiles_role_check
+      CHECK (role IN ('mother', 'obstetrician', 'pediatrician', 'admin'));
+  END IF;
+
+  -- Constraint de status
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'profiles_status_check' AND conrelid = 'public.profiles'::regclass
+  ) THEN
+    ALTER TABLE public.profiles
+      ADD CONSTRAINT profiles_status_check
+      CHECK (status IN ('email_pending', 'under_review', 'pending_documents', 'approved', 'suspended', 'rejected'));
+  END IF;
+END $$;
+
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- PASO 2: HABILITAR RLS
 -- ─────────────────────────────────────────────────────────────────────────────
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- ─────────────────────────────────────────────────────────────────────────────
--- PASO 3: POLÍTICAS RLS (limpiar primero para evitar duplicados)
--- ─────────────────────────────────────────────────────────────────────────────
-DROP POLICY IF EXISTS "profiles_select_own"            ON public.profiles;
-DROP POLICY IF EXISTS "profiles_update_own"            ON public.profiles;
-DROP POLICY IF EXISTS "profiles_select_admin"          ON public.profiles;
-DROP POLICY IF EXISTS "profiles_update_admin"          ON public.profiles;
-DROP POLICY IF EXISTS "profiles_delete_admin"          ON public.profiles;
-DROP POLICY IF EXISTS "profiles_insert_trigger"        ON public.profiles;
--- Nombres antiguos también por si acaso:
-DROP POLICY IF EXISTS "Users can view their own profile"  ON public.profiles;
-DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Admins can view all profiles"      ON public.profiles;
-DROP POLICY IF EXISTS "Admins can update all profiles"    ON public.profiles;
-DROP POLICY IF EXISTS "Admins can delete profiles"        ON public.profiles;
-DROP POLICY IF EXISTS "Allow insert during signup"        ON public.profiles;
 
--- El usuario autenticado ve su propio perfil
+-- ─────────────────────────────────────────────────────────────────────────────
+-- PASO 3: POLÍTICAS RLS
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Limpiar políticas anteriores para evitar duplicados
+DROP POLICY IF EXISTS "profiles_select_own"                ON public.profiles;
+DROP POLICY IF EXISTS "profiles_update_own"                ON public.profiles;
+DROP POLICY IF EXISTS "profiles_select_admin"              ON public.profiles;
+DROP POLICY IF EXISTS "profiles_update_admin"              ON public.profiles;
+DROP POLICY IF EXISTS "profiles_delete_admin"              ON public.profiles;
+DROP POLICY IF EXISTS "profiles_insert_trigger"            ON public.profiles;
+DROP POLICY IF EXISTS "Users can view their own profile"   ON public.profiles;
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Admins can view all profiles"       ON public.profiles;
+DROP POLICY IF EXISTS "Admins can update all profiles"     ON public.profiles;
+DROP POLICY IF EXISTS "Admins can delete profiles"         ON public.profiles;
+DROP POLICY IF EXISTS "Allow insert during signup"         ON public.profiles;
+
+-- Usuario autenticado: ve su propio perfil
 CREATE POLICY "profiles_select_own"
   ON public.profiles FOR SELECT
   TO authenticated
   USING (auth.uid() = id);
 
--- El usuario autenticado actualiza su propio perfil
+-- Usuario autenticado: actualiza su propio perfil
 CREATE POLICY "profiles_update_own"
   ON public.profiles FOR UPDATE
   TO authenticated
   USING (auth.uid() = id)
   WITH CHECK (auth.uid() = id);
 
--- ADMIN: puede SELECT todos los perfiles
+-- Admin: ve TODOS los perfiles
 CREATE POLICY "profiles_select_admin"
   ON public.profiles FOR SELECT
   TO authenticated
@@ -67,7 +96,7 @@ CREATE POLICY "profiles_select_admin"
     )
   );
 
--- ADMIN: puede UPDATE todos los perfiles
+-- Admin: actualiza TODOS los perfiles
 CREATE POLICY "profiles_update_admin"
   ON public.profiles FOR UPDATE
   TO authenticated
@@ -78,7 +107,7 @@ CREATE POLICY "profiles_update_admin"
     )
   );
 
--- ADMIN: puede DELETE perfiles
+-- Admin: elimina perfiles
 CREATE POLICY "profiles_delete_admin"
   ON public.profiles FOR DELETE
   TO authenticated
@@ -89,27 +118,21 @@ CREATE POLICY "profiles_delete_admin"
     )
   );
 
--- ⚠️  CLAVE: El trigger se ejecuta como SECURITY DEFINER (service_role),
---     pero necesitamos una política permisiva para INSERT de service_role.
---     Supabase recomienda usar la función auth.uid() IS NOT NULL OR true para triggers.
+-- Trigger (service_role): puede insertar sin auth.uid()
+-- WITH CHECK (true) es necesario porque el trigger corre antes de la sesión
 CREATE POLICY "profiles_insert_trigger"
   ON public.profiles FOR INSERT
-  WITH CHECK (true);   -- El trigger corre como service_role y bypasea RLS,
-                       -- pero si hay algún check adicional, este true lo permite.
+  WITH CHECK (true);
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- PASO 4: TRIGGER - Auto-crear perfil cuando alguien se registra
+-- PASO 4: TRIGGER - Auto-crear perfil al registrarse
 -- ─────────────────────────────────────────────────────────────────────────────
--- ⚠️ CRÍTICO: El bloque EXCEPTION evita que un error en el trigger
---    cancele el registro del usuario en auth.users.
---    Sin esto, Supabase devuelve "Database error saving new user".
-
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
-SECURITY DEFINER           -- corre como superuser, bypasea RLS
-SET search_path = public   -- necesario para SECURITY DEFINER functions
+SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
   INSERT INTO public.profiles (id, email, full_name, role, status, phone)
@@ -122,23 +145,18 @@ BEGIN
     NEW.raw_user_meta_data->>'phone'
   )
   ON CONFLICT (id) DO UPDATE
-    SET
-      email      = EXCLUDED.email,
-      updated_at = NOW();
+    SET email = EXCLUDED.email;   -- solo email, sin updated_at para máxima compatibilidad
 
   RETURN NEW;
 EXCEPTION
   WHEN OTHERS THEN
-    -- Log el error pero NO falla el registro en auth.users
-    RAISE WARNING 'handle_new_user error (non-fatal): % %', SQLERRM, SQLSTATE;
+    RAISE WARNING 'handle_new_user error (no bloquea registro): % %', SQLERRM, SQLSTATE;
     RETURN NEW;
 END;
 $$;
 
--- Limpiar trigger anterior si existe
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 
--- Crear trigger
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
@@ -146,16 +164,8 @@ CREATE TRIGGER on_auth_user_created
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- PASO 5: INSERTAR EL PERFIL DEL ADMIN MANUALMENTE
+-- PASO 5: ASEGURAR QUE EL ADMIN TENGA PERFIL CON ROLE='admin'
 -- ─────────────────────────────────────────────────────────────────────────────
--- Si ya tienes el admin creado en Authentication > Users pero no aparece
--- en la tabla profiles, ejecuta esto DESPUÉS de encontrar su UUID:
-
--- 5a. Buscar el UUID del admin:
-SELECT id, email, created_at FROM auth.users WHERE email = 'admin@alvisautomate.com';
-
--- 5b. Insertar/actualizar su perfil con rol admin:
---     (reemplaza el UUID con el que apareció en 5a)
 INSERT INTO public.profiles (id, email, full_name, role, status)
 SELECT
   id,
@@ -166,18 +176,18 @@ SELECT
 FROM auth.users
 WHERE email = 'admin@alvisautomate.com'
 ON CONFLICT (id) DO UPDATE
-  SET role = 'admin', status = 'approved', updated_at = NOW();
+  SET role = 'admin', status = 'approved';
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- PASO 6: VERIFICAR QUE TODO QUEDÓ BIEN
+-- PASO 6: VERIFICAR EL RESULTADO FINAL
 -- ─────────────────────────────────────────────────────────────────────────────
 SELECT
-  p.id,
-  p.email,
-  p.full_name,
-  p.role,
-  p.status,
-  p.created_at
-FROM public.profiles p
-ORDER BY p.created_at DESC;
+  id,
+  email,
+  full_name,
+  role,
+  status,
+  created_at
+FROM public.profiles
+ORDER BY created_at DESC;
