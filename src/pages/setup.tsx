@@ -23,18 +23,24 @@ export default function SetupPage() {
     const checkAdminStatus = async () => {
       try {
         if (typeof window === 'undefined') return;
+        // Primero verificar si hay sesión activa de Supabase
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // Ya hay un usuario logueado, ir directo al home
+          router.push('/');
+          return;
+        }
         const adminsExist = await hasAdmins();
         setHasExistingAdmins(adminsExist);
-
         if (adminsExist) {
-          // Si ya hay admins, redirigir al login
-          setTimeout(() => router.push('/'), 2000);
+          setTimeout(() => router.push('/'), 1500);
         }
       } catch (err) {
         console.error('Error checking admin status:', err);
+        // En caso de error, mostrar false para que no quede bloqueado
+        setHasExistingAdmins(false);
       }
     };
-
     checkAdminStatus();
   }, [router]);
 
@@ -135,9 +141,15 @@ export default function SetupPage() {
   if (hasExistingAdmins === null) {
     return (
       <div className="min-h-screen bg-[#020617] flex items-center justify-center">
-        <div className="text-center space-y-4">
+        <div className="text-center space-y-6">
           <Loader2 className="h-10 w-10 text-pink-500 animate-spin mx-auto" />
-          <p className="text-slate-500 text-xs font-mono tracking-widest uppercase">Verificando Infraestructura...</p>
+          <p className="text-slate-500 text-xs font-mono tracking-widest uppercase">Verificando...</p>
+          <button
+            onClick={() => router.push('/')}
+            className="text-xs text-slate-400 hover:text-white underline transition-colors font-bold mt-2"
+          >
+            ← Ir al Login
+          </button>
         </div>
       </div>
     );
@@ -302,6 +314,18 @@ export default function SetupPage() {
               <span className="text-[9px] font-bold text-emerald-500/80 uppercase tracking-widest">Sistema Listo</span>
             </div>
           </div>
+
+          {/* Enlace al login normal */}
+          <div className="text-center pt-2">
+            <button
+              type="button"
+              onClick={() => router.push('/')}
+              className="text-[11px] text-slate-400 hover:text-pink-400 transition-colors font-bold underline"
+            >
+              ← Ya tengo una cuenta &mdash; Ir al Login
+            </button>
+          </div>
+
         </div>
       </div>
 
