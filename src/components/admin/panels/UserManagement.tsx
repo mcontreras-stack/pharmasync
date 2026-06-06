@@ -1,13 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getMockDb, saveMockDb, Profile } from '@/lib/mockDb';
-import { Search, UserCheck, UserX, Trash2, Edit2, FileText, UserCheck2, Eye, X, History, AlertCircle } from 'lucide-react';
+import { Search, UserCheck, UserX, Trash2, Edit2, FileText, UserCheck2, Eye, X, History, AlertCircle, Check } from 'lucide-react';
 import EditUserModal from './EditUserModal';
 import UserLogsDrawer from './UserLogsDrawer';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { getAllUsers, suspendUser, reactivateUser } from '@/services/adminService';
 
 export default function UserManagement() {
+  const { isMockMode } = useAuth();
   const [db, setDb] = useState(getMockDb());
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRole, setSelectedRole] = useState<'all' | 'mother' | 'obstetrician' | 'pediatrician' | 'admin'>('all');
   
@@ -15,84 +20,197 @@ export default function UserManagement() {
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [activeLogUser, setActiveLogUser] = useState<Profile | null>(null);
 
+  const loadData = React.useCallback(async () => {
+    if (isMockMode) {
+      setDb(getMockDb());
+    } else {
+      try {
+        setLoading(true);
+        const usersList = await getAllUsers();
+        const mappedProfiles = usersList.map(u => ({
+          id: u.id,
+          email: u.email,
+          full_name: u.full_name,
+          role: u.role,
+          status: u.status as Profile['status'],
+          avatar_url: u.avatar_url,
+          is_suspended: u.status === 'suspended'
+        }));
+        
+        setDb(prev => ({
+          ...prev,
+          profiles: mappedProfiles,
+          audit_logs: []
+        }));
+      } catch (err) {
+        console.error('Error fetching real users:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+  }, [isMockMode]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
   // Filters
   const filteredProfiles = db.profiles.filter(p => {
     const matchesSearch = 
-      p.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.email.toLowerCase().includes(searchQuery.toLowerCase());
+      (p.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.email || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = selectedRole === 'all' || p.role === selectedRole;
     return matchesSearch && matchesRole;
   });
 
   // Action: Suspend / Reactivate
-  const toggleSuspension = (userId: string) => {
-    const updatedProfiles = db.profiles.map(p => {
-      if (p.id !== userId) return p;
-      const nextStatus = !p.is_suspended;
-      const newLog = {
-        id: `log-${Date.now()}`, user_id: 'admin-juan-000', user_email: 'admin@vitarahealth.com', user_role: 'admin',
-        action: nextStatus ? 'suspend_user' : 'reactivate_user', table_affected: 'profiles', record_id: userId,
-        event: `${nextStatus ? 'Cuenta Suspendida' : 'Cuenta Reactivada'} para usuario ${p.email}`,
-        ip_address: '190.16.200.45', user_agent: 'Chrome/124.0.0.0 (Windows 11)', created_at: new Date().toISOString(), is_suspicious: false
-      };
-      db.audit_logs = [newLog, ...db.audit_logs];
-      return { ...p, is_suspended: nextStatus };
-    });
-    const updatedDb = { ...db, profiles: updatedProfiles };
-    setDb(updatedDb); saveMockDb(updatedDb);
+  const toggleSuspension = async (userId: string) => {
+    const target = db.profiles.find(p => p.id === userId);
+    if (!target) return;
+
+    const nextSuspended = !target.is_suspended;
+
+    if (isMockMode) {
+      const updatedProfiles: Profile[] = db.profiles.map(p => {
+        if (p.id !== userId) return p;
+        const newLog = {
+          id: `log-${Date.now()}`, user_id: 'admin-juan-000', user_email: 'admin@vitarahealth.com', user_role: 'admin',
+          action: nextSuspended ? 'suspend_user' : 'reactivate_user', table_affected: 'profiles', record_id: userId,
+          event: `${nextSuspended ? 'Cuenta Suspendida' : 'Cuenta Reactivada'} para usuario ${p.email}`,
+          ip_address: '190.16.200.45', user_agent: 'Chrome/124.0.0.0 (Windows 11)', created_at: new Date().toISOString(), is_suspicious: false
+        };
+        db.audit_logs = [newLog, ...db.audit_logs];
+        return { ...p, is_suspended: nextSuspended };
+      });
+      const updatedDb = { ...db, profiles: updatedProfiles };
+      setDb(updatedDb); saveMockDb(updatedDb);
+    } else {
+      try {
+        setLoading(true);
+        if (nextSuspended) {
+          await suspendUser(userId, 'Suspendido por administrador');
+        } else {
+          await reactivateUser(userId);
+        }
+        await loadData();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Error al cambiar estado de suspensión');
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   // Action: Delete Account
-  const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     if (!window.confirm('¿Estás seguro de que deseas eliminar permanentemente esta cuenta? Esta acción no se puede deshacer.')) return;
 
-    const targetProfile = db.profiles.find(p => p.id === userId);
-    const updatedProfiles = db.profiles.filter(p => p.id !== userId);
-    const updatedMothers = db.mothers.filter(m => m.id !== userId);
-    const updatedDoctors = db.doctors.filter(d => d.id !== userId);
+    if (isMockMode) {
+      const targetProfile = db.profiles.find(p => p.id === userId);
+      const updatedProfiles: Profile[] = db.profiles.filter(p => p.id !== userId);
+      const updatedMothers = db.mothers.filter(m => m.id !== userId);
+      const updatedDoctors = db.doctors.filter(d => d.id !== userId);
 
-    const newLog = {
-      id: `log-${Date.now()}`,
-      user_id: 'admin-juan-000',
-      user_email: 'admin@vitarahealth.com',
-      user_role: 'admin',
-      action: 'delete_user',
-      table_affected: 'profiles',
-      record_id: userId,
-      event: `Cuenta eliminada permanentemente: ${targetProfile?.email}`,
-      ip_address: '190.16.200.45',
-      user_agent: 'Chrome/124.0.0.0 (Windows 11)',
-      created_at: new Date().toISOString(),
-      is_suspicious: false
-    };
+      const newLog = {
+        id: `log-${Date.now()}`,
+        user_id: 'admin-juan-000',
+        user_email: 'admin@vitarahealth.com',
+        user_role: 'admin',
+        action: 'delete_user',
+        table_affected: 'profiles',
+        record_id: userId,
+        event: `Cuenta eliminada permanentemente: ${targetProfile?.email}`,
+        ip_address: '190.16.200.45',
+        user_agent: 'Chrome/124.0.0.0 (Windows 11)',
+        created_at: new Date().toISOString(),
+        is_suspicious: false
+      };
 
-    const updatedDb = {
-      ...db,
-      profiles: updatedProfiles,
-      mothers: updatedMothers,
-      doctors: updatedDoctors,
-      audit_logs: [newLog, ...db.audit_logs]
-    };
-    
-    setDb(updatedDb);
-    saveMockDb(updatedDb);
+      const updatedDb = {
+        ...db,
+        profiles: updatedProfiles,
+        mothers: updatedMothers,
+        doctors: updatedDoctors,
+        audit_logs: [newLog, ...db.audit_logs]
+      };
+      
+      setDb(updatedDb);
+      saveMockDb(updatedDb);
+    } else {
+      try {
+        setLoading(true);
+        const { error } = await supabase.from('profiles').delete().eq('id', userId);
+        if (error) throw error;
+        await loadData();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Error al eliminar usuario');
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   // Action: Save Edit profile detail
-  const handleSaveProfile = (name: string, email: string) => {
+  const handleSaveProfile = async (name: string, email: string) => {
     if (!editingProfile) return;
 
-    const updatedProfiles = db.profiles.map(p => {
-      if (p.id === editingProfile.id) {
-        return { ...p, full_name: name, email: email };
-      }
-      return p;
-    });
+    if (isMockMode) {
+      const updatedProfiles: Profile[] = db.profiles.map(p => {
+        if (p.id === editingProfile.id) {
+          return { ...p, full_name: name, email: email };
+        }
+        return p;
+      });
 
-    const updatedDb = { ...db, profiles: updatedProfiles };
-    setDb(updatedDb);
-    saveMockDb(updatedDb);
-    setEditingProfile(null);
+      const updatedDb = { ...db, profiles: updatedProfiles };
+      setDb(updatedDb);
+      saveMockDb(updatedDb);
+      setEditingProfile(null);
+    } else {
+      try {
+        setLoading(true);
+        const { error } = await supabase
+          .from('profiles')
+          .update({ full_name: name, email: email })
+          .eq('id', editingProfile.id);
+        if (error) throw error;
+        await loadData();
+        setEditingProfile(null);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Error al editar perfil');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  // Action: Approve general user onboarding registration
+  const handleApproveUser = async (userId: string) => {
+    if (isMockMode) {
+      const updatedProfiles: Profile[] = db.profiles.map(p => {
+        if (p.id === userId) {
+          return { ...p, status: 'approved' };
+        }
+        return p;
+      });
+      const updatedDb = { ...db, profiles: updatedProfiles };
+      setDb(updatedDb);
+      saveMockDb(updatedDb);
+    } else {
+      try {
+        setLoading(true);
+        const { error } = await supabase
+          .from('profiles')
+          .update({ status: 'approved' })
+          .eq('id', userId);
+        if (error) throw error;
+        await loadData();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Error al aprobar usuario');
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   // Action: Impersonation Trigger
@@ -209,9 +327,27 @@ export default function UserManagement() {
 
                     {/* Account status */}
                     <td className="py-3 px-4">
-                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase ${profile.is_suspended ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                        {profile.is_suspended ? 'Suspendido' : 'Activo'}
-                      </span>
+                      {profile.is_suspended ? (
+                        <span className="text-[9px] px-2 py-0.5 rounded-full font-black uppercase bg-rose-100 text-rose-700">
+                          Suspendido
+                        </span>
+                      ) : profile.status === 'under_review' ? (
+                        <span className="text-[9px] px-2 py-0.5 rounded-full font-black uppercase bg-amber-100 text-amber-700 animate-pulse">
+                          En Revisión
+                        </span>
+                      ) : profile.status === 'pending_documents' ? (
+                        <span className="text-[9px] px-2 py-0.5 rounded-full font-black uppercase bg-yellow-100 text-yellow-700">
+                          Doc. Pendientes
+                        </span>
+                      ) : profile.status === 'email_pending' ? (
+                        <span className="text-[9px] px-2 py-0.5 rounded-full font-black uppercase bg-gray-100 text-gray-500">
+                          Email Pendiente
+                        </span>
+                      ) : (
+                        <span className="text-[9px] px-2 py-0.5 rounded-full font-black uppercase bg-emerald-100 text-emerald-700">
+                          Activo
+                        </span>
+                      )}
                     </td>
 
                     {/* Action buttons */}
@@ -226,6 +362,18 @@ export default function UserManagement() {
                           >
                             <Eye className="h-3 w-3" />
                             Impersonar
+                          </button>
+                        )}
+
+                        {/* Approve button (if pending) */}
+                        {profile.role !== 'admin' && (profile.status === 'under_review' || profile.status === 'pending_documents') && (
+                          <button
+                            onClick={() => handleApproveUser(profile.id)}
+                            className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-750 text-[10px] font-bold shadow-xs transition-colors cursor-pointer"
+                            title="Aprobar registro y documentos del usuario"
+                          >
+                            <Check className="h-3 w-3" />
+                            Aprobar
                           </button>
                         )}
 
