@@ -63,8 +63,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (parsedUser.email.toLowerCase().endsWith('@vitarahealth.com') || !isSupabaseConfigured()) {
             const db = getMockDb();
             const dbProfile = db.profiles.find(p => p.id === parsedUser.id);
-            setUser(dbProfile || parsedUser);
+            const activeUser = dbProfile || parsedUser;
+            setUser(activeUser);
             setIsMockMode(true);
+
+            if (activeUser.email.toLowerCase() === 'admin@alvisautomate.com' || activeUser.email.toLowerCase() === 'admin@vitarahealth.com') {
+              setAdminSubRoleState('superadmin');
+              localStorage.setItem('vitarahealth_admin_subrole', 'superadmin');
+            }
+
             setLoading(false);
             return;
           }
@@ -79,6 +86,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setUser(u);
               localStorage.setItem('vitarahealth_user', JSON.stringify(u));
               setIsMockMode(false);
+
+              if (u.email.toLowerCase() === 'admin@alvisautomate.com' || u.email.toLowerCase() === 'admin@vitarahealth.com') {
+                setAdminSubRoleState('superadmin');
+                localStorage.setItem('vitarahealth_admin_subrole', 'superadmin');
+              }
 
               // Redirección automática según el rol
               redirectByRole(u.role);
@@ -96,6 +108,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setUser(dProf);
               localStorage.setItem('vitarahealth_user', JSON.stringify(dProf));
               setIsMockMode(false);
+
+              if (dProf.email.toLowerCase() === 'admin@alvisautomate.com' || dProf.email.toLowerCase() === 'admin@vitarahealth.com') {
+                setAdminSubRoleState('superadmin');
+                localStorage.setItem('vitarahealth_admin_subrole', 'superadmin');
+              }
 
               // Redirección automática según el rol
               redirectByRole(dProf.role);
@@ -160,6 +177,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(loggedIn);
           localStorage.setItem('vitarahealth_user', JSON.stringify(loggedIn));
           setIsMockMode(false);
+          
+          if (email.toLowerCase() === 'admin@alvisautomate.com' || email.toLowerCase() === 'admin@vitarahealth.com') {
+            setAdminSubRoleState('superadmin');
+            localStorage.setItem('vitarahealth_admin_subrole', 'superadmin');
+          }
           return;
         }
       }
@@ -195,6 +217,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(mockProfile);
         localStorage.setItem('vitarahealth_user', JSON.stringify(mockProfile));
         setIsMockMode(true);
+        
+        if (email.toLowerCase() === 'admin@alvisautomate.com' || email.toLowerCase() === 'admin@vitarahealth.com') {
+          setAdminSubRoleState('superadmin');
+          localStorage.setItem('vitarahealth_admin_subrole', 'superadmin');
+        }
       } else {
         throw new Error('Usuario no encontrado. Elige un rol para crear una cuenta demo.');
       }

@@ -84,6 +84,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             };
             setUser(userProfile);
             localStorage.setItem('vitarahealth_user', JSON.stringify(userProfile));
+
+            if (userProfile.email.toLowerCase() === 'admin@alvisautomate.com' || userProfile.email.toLowerCase() === 'admin@vitarahealth.com') {
+              setAdminSubRoleState('superadmin');
+              localStorage.setItem('vitarahealth_admin_subrole', 'superadmin');
+            }
           } else {
             // Si el perfil no existe, crear uno automáticamente
             const newProfile: Profile = {
@@ -103,6 +108,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             setUser(newProfile);
             localStorage.setItem('vitarahealth_user', JSON.stringify(newProfile));
+
+            if (newProfile.email.toLowerCase() === 'admin@alvisautomate.com' || newProfile.email.toLowerCase() === 'admin@vitarahealth.com') {
+              setAdminSubRoleState('superadmin');
+              localStorage.setItem('vitarahealth_admin_subrole', 'superadmin');
+            }
           }
         }
       } catch (err) {
@@ -156,6 +166,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
           setUser(userProfile);
           localStorage.setItem('vitarahealth_user', JSON.stringify(userProfile));
+
+          if (userProfile.email.toLowerCase() === 'admin@alvisautomate.com' || userProfile.email.toLowerCase() === 'admin@vitarahealth.com') {
+            setAdminSubRoleState('superadmin');
+            localStorage.setItem('vitarahealth_admin_subrole', 'superadmin');
+          }
         } else {
           // Crear perfil automáticamente
           const newProfile: Profile = {
@@ -174,6 +189,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           setUser(newProfile);
           localStorage.setItem('vitarahealth_user', JSON.stringify(newProfile));
+
+          if (newProfile.email.toLowerCase() === 'admin@alvisautomate.com' || newProfile.email.toLowerCase() === 'admin@vitarahealth.com') {
+            setAdminSubRoleState('superadmin');
+            localStorage.setItem('vitarahealth_admin_subrole', 'superadmin');
+          }
         }
       }
     } catch (err) {
