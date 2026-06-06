@@ -15,6 +15,7 @@ export default function RegisterForm({ onLoginClick }: RegisterFormProps) {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [registerRole, setRegisterRole] = useState<'mother' | 'obstetrician' | 'pediatrician'>('mother');
+  const [selectedPlan, setSelectedPlan] = useState('free');
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -34,7 +35,7 @@ export default function RegisterForm({ onLoginClick }: RegisterFormProps) {
 
     setLoading(true);
     try {
-      await signUp(email, password, fullName, registerRole, phone);
+      await signUp(email, password, fullName, registerRole, phone, selectedPlan);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Error al registrar la cuenta. Inténtalo de nuevo.');
     } finally {
@@ -124,6 +125,70 @@ export default function RegisterForm({ onLoginClick }: RegisterFormProps) {
             <option value="obstetrician">Médico Obstetra</option>
             <option value="pediatrician">Médico Pediatra</option>
           </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[9px] font-bold text-slate-450 uppercase tracking-widest flex items-center gap-1">
+            <Sparkles className="h-3 w-3 text-slate-500" /> Plan de Suscripción
+          </label>
+          <div className="grid grid-cols-3 gap-1.5">
+            {/* Free Plan */}
+            <div
+              onClick={() => !loading && setSelectedPlan('free')}
+              className={`p-2.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between h-24 text-left ${
+                selectedPlan === 'free'
+                  ? 'bg-pink-950/20 border-pink-500/80 shadow-md'
+                  : 'bg-slate-950/40 border-slate-800 hover:border-slate-700'
+              }`}
+            >
+              <div>
+                <p className="text-[10px] font-bold text-white">Gratis</p>
+                <p className="text-[7.5px] text-slate-400 mt-0.5 leading-tight">Seguimiento básico y portal web</p>
+              </div>
+              <div className="flex justify-between items-center mt-1">
+                <span className="text-[9px] font-black text-pink-400">$0.00</span>
+                <div className="h-3 w-3 rounded-full border border-pink-500 flex items-center justify-center">
+                  {selectedPlan === 'free' && <div className="h-1.5 w-1.5 rounded-full bg-pink-500" />}
+                </div>
+              </div>
+            </div>
+
+            {/* Premium Plan */}
+            <div
+              className="p-2.5 rounded-xl border border-slate-800/40 bg-slate-950/20 opacity-45 cursor-not-allowed flex flex-col justify-between h-24 text-left relative overflow-hidden"
+              title="Plan Premium - No disponible actualmente"
+            >
+              <div className="absolute top-1 right-1 bg-purple-500/10 text-purple-300 border border-purple-500/25 text-[5.5px] font-extrabold uppercase tracking-widest px-0.5 rounded-sm">
+                Pro
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400">Premium</p>
+                <p className="text-[7.5px] text-slate-500 mt-0.5 leading-tight">IA Diagnósticos y alertas activas</p>
+              </div>
+              <div className="flex justify-between items-center mt-1">
+                <span className="text-[9px] font-bold text-slate-500">$9.99/m</span>
+                <span className="text-[7px] font-bold text-slate-500">Demo</span>
+              </div>
+            </div>
+
+            {/* Hospital Plan */}
+            <div
+              className="p-2.5 rounded-xl border border-slate-800/40 bg-slate-950/20 opacity-45 cursor-not-allowed flex flex-col justify-between h-24 text-left relative overflow-hidden"
+              title="Plan Clínico - No disponible actualmente"
+            >
+              <div className="absolute top-1 right-1 bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 text-[5.5px] font-extrabold uppercase tracking-widest px-0.5 rounded-sm">
+                Clínica
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400">Clínica</p>
+                <p className="text-[7.5px] text-slate-500 mt-0.5 leading-tight">Soporte médico integrado</p>
+              </div>
+              <div className="flex justify-between items-center mt-1">
+                <span className="text-[9px] font-bold text-slate-500">$49.99/m</span>
+                <span className="text-[7px] font-bold text-slate-500">Demo</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {errorMsg && (

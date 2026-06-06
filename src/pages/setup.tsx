@@ -84,6 +84,7 @@ export default function SetupPage() {
       console.log('Intentando registro inicial en Supabase...');
 
       // 1. Intentar el registro
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -92,6 +93,7 @@ export default function SetupPage() {
             full_name: formData.fullName,
             role: 'admin',
           },
+          emailRedirectTo: `${siteUrl}/`,
         },
       });
 

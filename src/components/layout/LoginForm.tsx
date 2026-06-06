@@ -10,7 +10,7 @@ interface LoginFormProps {
 }
 
 export default function LoginForm({ onForgotPasswordClick, onRegisterClick }: LoginFormProps) {
-  const { signIn } = useAuth();
+  const { signIn, isMockMode } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -55,7 +55,11 @@ export default function LoginForm({ onForgotPasswordClick, onRegisterClick }: Lo
     <div className="space-y-5">
       <div>
         <h2 className="text-xl font-black text-white">Ingresar al Portal</h2>
-        <p className="text-[10px] text-slate-400 mt-1">Ingresa tus credenciales o selecciona un perfil demo pre-aprobado.</p>
+        <p className="text-[10px] text-slate-400 mt-1">
+          {isMockMode 
+            ? "Ingresa tus credenciales o selecciona un perfil demo pre-aprobado."
+            : "Ingresa tus credenciales para acceder a tu cuenta."}
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -119,58 +123,60 @@ export default function LoginForm({ onForgotPasswordClick, onRegisterClick }: Lo
       </form>
 
       {/* Demo users list */}
-      <div className="space-y-2 pt-2">
-        <span className="text-[9px] font-bold text-slate-450 uppercase tracking-widest block mb-1">Acceso Demo Rápido (Contraseña: 123456):</span>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => handleDemoLogin('mother')}
-            disabled={loading}
-            className="flex items-center gap-2 p-2.5 bg-pink-955/20 border border-pink-500/20 rounded-xl hover:bg-pink-950/30 text-left transition-all cursor-pointer"
-          >
-            <Heart className="h-4 w-4 text-pink-405 shrink-0" />
-            <div>
-              <p className="text-[10px] font-bold text-pink-300">Madre Demo</p>
-              <p className="text-[8px] text-pink-400/70 truncate">María López</p>
-            </div>
-          </button>
+      {isMockMode && (
+        <div className="space-y-2 pt-2">
+          <span className="text-[9px] font-bold text-slate-450 uppercase tracking-widest block mb-1">Acceso Demo Rápido (Contraseña: 123456):</span>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => handleDemoLogin('mother')}
+              disabled={loading}
+              className="flex items-center gap-2 p-2.5 bg-pink-955/20 border border-pink-500/20 rounded-xl hover:bg-pink-950/30 text-left transition-all cursor-pointer"
+            >
+              <Heart className="h-4 w-4 text-pink-405 shrink-0" />
+              <div>
+                <p className="text-[10px] font-bold text-pink-300">Madre Demo</p>
+                <p className="text-[8px] text-pink-400/70 truncate">María López</p>
+              </div>
+            </button>
 
-          <button
-            onClick={() => handleDemoLogin('obstetrician')}
-            disabled={loading}
-            className="flex items-center gap-2 p-2.5 bg-purple-955/20 border border-purple-500/20 rounded-xl hover:bg-purple-955/30 text-left transition-all cursor-pointer"
-          >
-            <Shield className="h-4 w-4 text-purple-405 shrink-0" />
-            <div>
-              <p className="text-[10px] font-bold text-purple-300">Obstetra Demo</p>
-              <p className="text-[8px] text-purple-400/70 truncate">Dra. Ana R.</p>
-            </div>
-          </button>
+            <button
+              onClick={() => handleDemoLogin('obstetrician')}
+              disabled={loading}
+              className="flex items-center gap-2 p-2.5 bg-purple-955/20 border border-purple-500/20 rounded-xl hover:bg-purple-955/30 text-left transition-all cursor-pointer"
+            >
+              <Shield className="h-4 w-4 text-purple-405 shrink-0" />
+              <div>
+                <p className="text-[10px] font-bold text-purple-300">Obstetra Demo</p>
+                <p className="text-[8px] text-purple-400/70 truncate">Dra. Ana R.</p>
+              </div>
+            </button>
 
-          <button
-            onClick={() => handleDemoLogin('pediatrician')}
-            disabled={loading}
-            className="flex items-center gap-2 p-2.5 bg-emerald-955/20 border border-emerald-500/20 rounded-xl hover:bg-emerald-955/30 text-left transition-all cursor-pointer"
-          >
-            <Baby className="h-4 w-4 text-emerald-405 shrink-0" />
-            <div>
-              <p className="text-[10px] font-bold text-emerald-300">Pediatra Demo</p>
-              <p className="text-[8px] text-emerald-400/70 truncate">Dr. Andrés P.</p>
-            </div>
-          </button>
+            <button
+              onClick={() => handleDemoLogin('pediatrician')}
+              disabled={loading}
+              className="flex items-center gap-2 p-2.5 bg-emerald-955/20 border border-emerald-500/20 rounded-xl hover:bg-emerald-955/30 text-left transition-all cursor-pointer"
+            >
+              <Baby className="h-4 w-4 text-emerald-405 shrink-0" />
+              <div>
+                <p className="text-[10px] font-bold text-emerald-300">Pediatra Demo</p>
+                <p className="text-[8px] text-emerald-400/70 truncate">Dr. Andrés P.</p>
+              </div>
+            </button>
 
-          <button
-            onClick={() => handleDemoLogin('admin')}
-            disabled={loading}
-            className="flex items-center gap-2 p-2.5 bg-slate-900 border border-slate-700 rounded-xl hover:bg-slate-800 text-left transition-all cursor-pointer"
-          >
-            <UserCheck className="h-4 w-4 text-slate-300 shrink-0" />
-            <div>
-              <p className="text-[10px] font-bold text-slate-205">Administrador</p>
-              <p className="text-[8px] text-slate-400 truncate">Admin Juan</p>
-            </div>
-          </button>
+            <button
+              onClick={() => handleDemoLogin('admin')}
+              disabled={loading}
+              className="flex items-center gap-2 p-2.5 bg-slate-900 border border-slate-700 rounded-xl hover:bg-slate-800 text-left transition-all cursor-pointer"
+            >
+              <UserCheck className="h-4 w-4 text-slate-300 shrink-0" />
+              <div>
+                <p className="text-[10px] font-bold text-slate-205">Administrador</p>
+                <p className="text-[8px] text-slate-400 truncate">Admin Juan</p>
+              </div>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
       
       <div className="text-center pt-2 flex flex-col gap-2">
         <button
@@ -181,20 +187,36 @@ export default function LoginForm({ onForgotPasswordClick, onRegisterClick }: Lo
         >
           ¿No tienes una cuenta? <span className="text-pink-400 font-bold hover:underline">Regístrate</span>
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            if (window.confirm('¿Deseas restablecer la base de datos local de demostración? Esto borrará tus registros locales creados.')) {
-              localStorage.removeItem('vitarahealth_mock_db');
+        {isMockMode && (
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm('¿Deseas restablecer la base de datos local de demostración? Esto borrará tus registros locales creados.')) {
+                localStorage.removeItem('vitarahealth_mock_db');
+                localStorage.removeItem('vitarahealth_user');
+                window.location.reload();
+              }
+            }}
+            className="text-[9px] text-slate-550 hover:text-rose-400 transition-colors font-bold uppercase tracking-wider mt-1 cursor-pointer"
+            disabled={loading}
+          >
+            Restablecer Base de Datos Demo
+          </button>
+        )}
+        {isMockMode && (
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.removeItem('vitarahealth_force_mock_mode');
               localStorage.removeItem('vitarahealth_user');
-              window.location.reload();
-            }
-          }}
-          className="text-[9px] text-slate-550 hover:text-rose-400 transition-colors font-bold uppercase tracking-wider mt-1 cursor-pointer"
-          disabled={loading}
-        >
-          Restablecer Base de Datos Demo
-        </button>
+              window.location.href = '/';
+            }}
+            className="text-[10px] text-pink-400 hover:text-pink-300 font-bold transition-colors underline cursor-pointer mt-1"
+            disabled={loading}
+          >
+            Volver a Modo Producción
+          </button>
+        )}
       </div>
     </div>
   );

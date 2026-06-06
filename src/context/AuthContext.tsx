@@ -16,7 +16,7 @@ interface AuthContextType {
   adminSubRole: AdminSubRole;
   setAdminSubRole: (role: AdminSubRole) => void;
   signIn: (email: string, password?: string, role?: 'mother' | 'obstetrician' | 'pediatrician' | 'admin') => Promise<void>;
-  signUp: (email: string, password?: string, full_name?: string, role?: 'mother' | 'obstetrician' | 'pediatrician', phone?: string) => Promise<void>;
+  signUp: (email: string, password?: string, full_name?: string, role?: 'mother' | 'obstetrician' | 'pediatrician', phone?: string, plan?: string) => Promise<void>;
   signOut: () => Promise<void>;
   switchRole: (role: 'mother' | 'obstetrician' | 'pediatrician' | 'admin') => void;
   refreshUser: () => void;
@@ -30,7 +30,20 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isMockMode, setIsMockMode] = useState(true);
+  const [isMockMode, setIsMockMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const forcedMock = localStorage.getItem('vitarahealth_force_mock_mode') === 'true';
+      const storedUser = localStorage.getItem('vitarahealth_user');
+      const isUserMock = storedUser ? JSON.parse(storedUser).email?.toLowerCase().endsWith('@vitarahealth.com') : false;
+      
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+      const isConfigured = supabaseUrl.length > 0 && supabaseAnonKey.length > 0 && !supabaseUrl.includes('placeholder');
+      
+      return forcedMock || isUserMock || !isConfigured;
+    }
+    return false;
+  });
   const [adminSubRole, setAdminSubRoleState] = useState<AdminSubRole>('superadmin');
   
   // Usar hooks de next/navigation para compatibilidad con App Router
@@ -42,6 +55,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         // Evitar ejecución durante el build estático si no hay window
         if (typeof window === 'undefined') return;
+
+        const forcedMock = localStorage.getItem('vitarahealth_force_mock_mode') === 'true';
+        const useMock = forcedMock || !isSupabaseConfigured();
+        setIsMockMode(useMock);
 
         // Verificar si hay admins en el sistema
         const adminsExist = await hasAdmins();
@@ -230,14 +247,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password?: string, full_name?: string, role?: 'mother' | 'obstetrician' | 'pediatrician', phone?: string) => {
+  const signUp = async (email: string, password?: string, full_name?: string, role?: 'mother' | 'obstetrician' | 'pediatrician', phone?: string, plan?: string) => {
     setLoading(true);
     try {
       const isDemo = email.toLowerCase().endsWith('@vitarahealth.com');
 
       if (isSupabaseConfigured() && password && full_name && role && phone && !isDemo) {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
         const { data, error } = await supabase.auth.signUp({
-          email, password, options: { data: { full_name, role, phone } }
+          email, password, options: { 
+            data: { full_name, role, phone, plan: plan || 'free' },
+            emailRedirectTo: `${siteUrl}/`
+          }
         });
         if (error) throw error;
         if (data.user) {
@@ -315,8 +336,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const isDemo = email.toLowerCase().endsWith('@vitarahealth.com');
 
     if (isSupabaseConfigured() && !isDemo) {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + '/reset-password'
+        redirectTo: `${siteUrl}/reset-password`
       });
       if (error) throw error;
       return;
