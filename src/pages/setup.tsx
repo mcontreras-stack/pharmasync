@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { getMockDb } from '@/lib/mockDb';
 import { hasAdmins } from '@/services/adminService';
 import { ShieldCheck, Mail, Lock, User, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 
@@ -36,6 +37,22 @@ export default function SetupPage() {
 
     checkAdminStatus();
   }, [router]);
+
+  const handleForceMockMode = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vitarahealth_force_mock_mode', 'true');
+      const db = getMockDb();
+      const adminUser = db.profiles.find(p => p.role === 'admin') || {
+        id: 'admin-super-999',
+        email: 'admin@vitarahealth.com',
+        full_name: 'Admin Vitara Health',
+        role: 'admin',
+        status: 'approved'
+      };
+      localStorage.setItem('vitarahealth_user', JSON.stringify(adminUser));
+      router.push('/admin');
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -171,9 +188,20 @@ export default function SetupPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
-              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-2xl text-xs font-medium flex items-center gap-3 animate-shake">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <span>{error}</span>
+              <div className="space-y-3">
+                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-2xl text-xs font-medium flex items-center gap-3 animate-shake">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
+                {error.includes('Supabase') && (
+                  <button
+                    type="button"
+                    onClick={handleForceMockMode}
+                    className="w-full bg-slate-800 hover:bg-slate-750 text-white font-bold py-3.5 px-4 rounded-2xl text-xs border border-slate-700 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                  >
+                    Usar Modo Demostración Local (Sin Base de Datos)
+                  </button>
+                )}
               </div>
             )}
 
