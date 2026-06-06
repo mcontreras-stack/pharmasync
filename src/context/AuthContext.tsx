@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { hasAdmins } from '@/services/adminService';
 import { getMockDb, saveMockDb, MOCK_MOTHER_ID, MOCK_OBSTETRICIAN_ID, MOCK_PEDIATRICIAN_ID, MOCK_ADMIN_ID, Profile, Doctor } from '@/lib/mockDb';
 import { emailService } from '@/services/emailService';
 
@@ -46,7 +45,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
   const [adminSubRole, setAdminSubRoleState] = useState<AdminSubRole>('superadmin');
   
-  // Usar hooks de next/navigation para compatibilidad con App Router
   const router = useRouter();
   const pathname = usePathname();
 
@@ -60,15 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const useMock = forcedMock || !isSupabaseConfigured();
         setIsMockMode(useMock);
 
-        // Verificar si hay admins en el sistema
-        const adminsExist = await hasAdmins();
-
-        // Si no hay admins y no estamos en /setup, redirigir a setup
-        if (!adminsExist && pathname !== '/setup' && isSupabaseConfigured()) {
-          router.push('/setup');
-          setLoading(false);
-          return;
-        }
+        // NOTA: El /setup ya no bloquea el acceso. El admin puede entrar
+        // directamente desde el login normal. El /setup sigue disponible
+        // en su URL si se necesita para configuración inicial.
 
         const storedMockUser = localStorage.getItem('vitarahealth_user');
         const storedSubRole = localStorage.getItem('vitarahealth_admin_subrole') as AdminSubRole;
