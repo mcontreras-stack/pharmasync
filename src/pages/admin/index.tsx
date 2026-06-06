@@ -17,7 +17,7 @@ export default function AdminDashboard() {
         const { data: { session } } = await supabase.auth.getSession();
 
         if (!session) {
-          router.push('/login');
+          router.push('/');
           return;
         }
 
@@ -46,7 +46,7 @@ export default function AdminDashboard() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push('/login');
+    router.push('/');
   };
 
   if (loading) {

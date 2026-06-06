@@ -28,7 +28,7 @@ export default function SetupPage() {
 
         if (adminsExist) {
           // Si ya hay admins, redirigir al login
-          setTimeout(() => router.push('/login'), 2000);
+          setTimeout(() => router.push('/'), 2000);
         }
       } catch (err) {
         console.error('Error checking admin status:', err);

@@ -299,7 +299,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!isMockMode && isSupabaseConfigured()) {
         await supabase.auth.signOut();
       }
-      router.push('/login');
+      router.push('/');
     } finally {
       setLoading(false);
     }
