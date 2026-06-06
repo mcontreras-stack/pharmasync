@@ -39,40 +39,6 @@ export default function Header() {
 
       {/* Action controls */}
       <div className="flex items-center gap-2 sm:gap-4">
-        {/* Mock Role Bypass (Super useful for reviewer/demo) */}
-        {isMockMode && (
-          <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1 text-xs">
-            <span className="text-gray-500 font-medium px-1.5 hidden md:inline">Demo Rol:</span>
-            <button
-              onClick={() => switchRole('mother')}
-              className={`px-2 py-1 rounded-md transition-colors font-semibold ${user.role === 'mother' ? 'bg-pink-500 text-white shadow-sm' : 'text-pink-600 hover:bg-pink-50'}`}
-              title="Ver Vista Madre"
-            >
-              Madre
-            </button>
-            <button
-              onClick={() => switchRole('obstetrician')}
-              className={`px-2 py-1 rounded-md transition-colors font-semibold ${user.role === 'obstetrician' ? 'bg-purple-500 text-white shadow-sm' : 'text-purple-600 hover:bg-purple-50'}`}
-              title="Ver Vista Obstetra"
-            >
-              Obstetra
-            </button>
-            <button
-              onClick={() => switchRole('pediatrician')}
-              className={`px-2 py-1 rounded-md transition-colors font-semibold ${user.role === 'pediatrician' ? 'bg-emerald-500 text-white shadow-sm' : 'text-emerald-600 hover:bg-emerald-50'}`}
-              title="Ver Vista Pediatra"
-            >
-              Pediatra
-            </button>
-            <button
-              onClick={() => switchRole('admin')}
-              className={`px-2 py-1 rounded-md transition-colors font-semibold ${user.role === 'admin' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}
-              title="Ver Vista Administrador"
-            >
-              Admin
-            </button>
-          </div>
-        )}
 
         {/* Notifications Icon */}
         <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors relative">

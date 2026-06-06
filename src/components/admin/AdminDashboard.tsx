@@ -155,20 +155,11 @@ export default function AdminDashboard() {
 
         <div className="shrink-0 flex items-center gap-3 relative z-10">
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Rol Operativo:</label>
-          <select
-            value={adminSubRole}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setAdminSubRole(e.target.value as AdminSubRole)}
-            className="bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-xs font-bold text-slate-200 focus:outline-none focus:border-slate-700 cursor-pointer"
-          >
-            <option value="superadmin">Super Administrador</option>
-            <option value="admin">Administrador Operaciones</option>
-            <option value="calidad">Auditor de Calidad Médica</option>
-            <option value="verificador_documental">Verificador Documental</option>
-            <option value="soporte">Agente de Soporte</option>
-            <option value="finanzas">Analista de Finanzas</option>
-            <option value="auditor">Auditor HIPAA</option>
-          </select>
+          <span className="bg-slate-950 border border-slate-800 text-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold font-mono">
+            {subRolesInfo[adminSubRole]?.name || 'Super Administrador'}
+          </span>
         </div>
+
       </div>
 
       <div className="mt-4">
