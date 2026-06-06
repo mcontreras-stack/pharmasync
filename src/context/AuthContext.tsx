@@ -76,7 +76,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (storedMockUser) {
           const parsedUser = JSON.parse(storedMockUser) as Profile;
-          // Check if stored user was mock
+
+          // ── Usuario Mock (demo)
           if (parsedUser.email.toLowerCase().endsWith('@vitarahealth.com') || !isSupabaseConfigured()) {
             const db = getMockDb();
             const dbProfile = db.profiles.find(p => p.id === parsedUser.id);
@@ -89,6 +90,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               localStorage.setItem('vitarahealth_admin_subrole', 'superadmin');
             }
 
+            setLoading(false);
+            return;
+          }
+
+          // ── Usuario real con estado pendiente:
+          //    Si Supabase requiere confirmación de email, no habrá sesión activa
+          //    pero el perfil ya fue guardado al registrarse. Lo restauramos.
+          const PENDING_STATUSES = ['email_pending', 'under_review', 'pending_documents'];
+          if (PENDING_STATUSES.includes(parsedUser.status || '')) {
+            setUser(parsedUser);
+            setIsMockMode(false);
             setLoading(false);
             return;
           }
