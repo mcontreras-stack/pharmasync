@@ -96,15 +96,20 @@ export async function getSystemStats(): Promise<AdminStats> {
  */
 export async function getAllUsers(): Promise<UserProfile[]> {
   try {
+    console.log('[adminService] Fetching all users from Supabase...');
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('[adminService] getAllUsers error:', error.message, error.details, error.hint);
+      throw error;
+    }
+    console.log(`[adminService] getAllUsers returned ${data?.length ?? 0} records:`, data);
     return (data || []) as UserProfile[];
   } catch (err) {
-    console.error('Error fetching all users:', err);
+    console.error('[adminService] Exception in getAllUsers:', err);
     throw err;
   }
 }

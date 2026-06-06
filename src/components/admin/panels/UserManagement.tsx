@@ -13,6 +13,7 @@ export default function UserManagement() {
   const { isMockMode } = useAuth();
   const [db, setDb] = useState(getMockDb());
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRole, setSelectedRole] = useState<'all' | 'mother' | 'obstetrician' | 'pediatrician' | 'admin'>('all');
   
@@ -23,9 +24,11 @@ export default function UserManagement() {
   const loadData = React.useCallback(async () => {
     if (isMockMode) {
       setDb(getMockDb());
+      setLoadError(null);
     } else {
       try {
         setLoading(true);
+        setLoadError(null);
         const usersList = await getAllUsers();
         const mappedProfiles = usersList.map(u => ({
           id: u.id,
@@ -43,7 +46,9 @@ export default function UserManagement() {
           audit_logs: []
         }));
       } catch (err) {
-        console.error('Error fetching real users:', err);
+        const msg = err instanceof Error ? err.message : 'Error desconocido al cargar usuarios';
+        console.error('[UserManagement] loadData error:', err);
+        setLoadError(msg);
       } finally {
         setLoading(false);
       }
@@ -272,6 +277,41 @@ export default function UserManagement() {
         </div>
       </div>
 
+      {/* Error banner */}
+      {loadError && !isMockMode && (
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex gap-3 items-start">
+          <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-bold text-rose-700">Error al cargar usuarios desde Supabase</p>
+            <p className="text-[10px] text-rose-600 mt-0.5">{loadError}</p>
+            <p className="text-[10px] text-rose-500 mt-1">
+              Posibles causas: (1) Falta política RLS en la tabla <code className="bg-rose-100 px-1 rounded">profiles</code> que permita al rol <code className="bg-rose-100 px-1 rounded">service_role</code> o <code className="bg-rose-100 px-1 rounded">authenticated</code> leer.
+              (2) La tabla <code className="bg-rose-100 px-1 rounded">profiles</code> no existe en Supabase.
+              Revisa la consola del navegador (F12) para más detalles.
+            </p>
+            <button onClick={loadData} className="mt-2 text-[10px] font-bold text-rose-600 underline hover:text-rose-800">Reintentar</button>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state with hint when in production */}
+      {!isMockMode && !loading && !loadError && db.profiles.length === 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3 items-start">
+          <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-bold text-amber-700">La tabla profiles está vacía en Supabase</p>
+            <p className="text-[10px] text-amber-600 mt-0.5">
+              La consulta a Supabase retornó 0 registros. Verifica:
+            </p>
+            <ul className="text-[10px] text-amber-600 mt-1 list-disc ml-3 space-y-0.5">
+              <li>Que la tabla <code className="bg-amber-100 px-1 rounded">profiles</code> tiene filas (verifica en Supabase Studio)</li>
+              <li>Que las políticas RLS (Row Level Security) permiten <code className="bg-amber-100 px-1 rounded">SELECT</code> para el rol del admin</li>
+              <li>Revisa la consola del navegador (F12) para ver el log de <code className="bg-amber-100 px-1 rounded">[adminService]</code></li>
+            </ul>
+          </div>
+        </div>
+      )}
+
       {/* Users roster table */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
@@ -366,7 +406,7 @@ export default function UserManagement() {
                         )}
 
                         {/* Approve button (if pending) */}
-                        {profile.role !== 'admin' && (profile.status === 'under_review' || profile.status === 'pending_documents') && (
+                        {profile.role !== 'admin' && (profile.status === 'under_review' || profile.status === 'pending_documents' || profile.status === 'email_pending') && (
                           <button
                             onClick={() => handleApproveUser(profile.id)}
                             className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-750 text-[10px] font-bold shadow-xs transition-colors cursor-pointer"

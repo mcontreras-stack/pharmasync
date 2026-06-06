@@ -262,8 +262,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         if (error) throw error;
         if (data.user) {
-          const newProfile: Profile = { id: data.user.id, email, full_name, role, status: 'email_pending', phone };
-          await supabase.from('profiles').upsert(newProfile);
+          // Status 'under_review' para que el admin pueda ver y aprobar el usuario
+          const newProfile: Profile = { id: data.user.id, email, full_name, role, status: 'under_review', phone };
+          const { error: upsertError } = await supabase.from('profiles').upsert(newProfile);
+          if (upsertError) {
+            console.error('[AuthContext] Error al crear perfil en profiles:', upsertError);
+            // Aún así continuamos — el trigger de Supabase puede haberlo creado
+          }
           
           setUser(newProfile);
           localStorage.setItem('vitarahealth_user', JSON.stringify(newProfile));
