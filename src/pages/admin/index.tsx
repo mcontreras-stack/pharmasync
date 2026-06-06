@@ -9,43 +9,40 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<AdminStats | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
+    const checkAuthAndLoadStats = async () => {
+      try {
+        if (typeof window === 'undefined') return;
+
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!session) {
+          router.push('/login');
+          return;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profileError || !profile || profile.role !== 'admin') {
+          router.push('/');
+          return;
+        }
+
+        const systemStats = await getSystemStats();
+        setStats(systemStats);
+      } catch (err) {
+        console.error('Dashboard error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     checkAuthAndLoadStats();
-  }, []);
-
-  const checkAuthAndLoadStats = async () => {
-    try {
-      if (typeof window === 'undefined') return;
-
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        router.push('/login');
-        return;
-      }
-
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single();
-
-      if (profileError || !profile || profile.role !== 'admin') {
-        router.push('/');
-        return;
-      }
-
-      const systemStats = await getSystemStats();
-      setStats(systemStats);
-    } catch (err: any) {
-      setError(err.message || 'Error al cargar el dashboard');
-      console.error('Dashboard error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [router]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

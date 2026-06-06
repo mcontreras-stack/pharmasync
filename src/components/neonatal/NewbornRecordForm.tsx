@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getMockDb, saveMockDb, NewbornRecord } from '@/lib/mockDb';
 import { Baby, Activity, Scale, HeartPulse, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -15,9 +15,8 @@ export default function NewbornRecordForm({ babyId, onSuccess }: NewbornRecordFo
   const [db, setDb] = useState(getMockDb());
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Find or initialize newborn record
-  const existingRecord = db.newborn_records?.find(r => r.baby_id === babyId) || {
-    id: `newborn-${Date.now()}`,
+  const [record, setRecord] = useState<NewbornRecord>({
+    id: '',
     baby_id: babyId,
     pregnancy_id: '',
     apgar_1min: 9,
@@ -26,20 +25,44 @@ export default function NewbornRecordForm({ babyId, onSuccess }: NewbornRecordFo
     birth_height_cm: 50,
     head_circumference_cm: 34.5,
     complications: '',
-    screenings: [
-      { test_name: 'Metabólico', result: 'normal', date: new Date().toISOString().split('T')[0] },
-      { test_name: 'Auditivo', result: 'normal', date: new Date().toISOString().split('T')[0] }
-    ],
-    vaccines: [
-      { name: 'BCG (Tuberculosis)', applied: true, date: new Date().toISOString().split('T')[0], lot: 'BCG-99A' },
-      { name: 'Hepatitis B (Dosis Recién Nacido)', applied: true, date: new Date().toISOString().split('T')[0], lot: 'HB-881' }
-    ]
-  } as NewbornRecord;
+    screenings: [],
+    vaccines: []
+  });
 
-  const [record, setRecord] = useState<NewbornRecord>({ ...existingRecord });
+  useEffect(() => {
+    const existing = db.newborn_records?.find(r => r.baby_id === babyId);
+    if (existing) {
+      setTimeout(() => {
+        setRecord(existing);
+      }, 0);
+    } else {
+      const today = new Date().toISOString().split('T')[0];
+      setTimeout(() => {
+        setRecord({
+          id: `newborn-${Date.now()}`,
+          baby_id: babyId,
+          pregnancy_id: '',
+          apgar_1min: 9,
+          apgar_5min: 10,
+          birth_weight_grams: 3200,
+          birth_height_cm: 50,
+          head_circumference_cm: 34.5,
+          complications: '',
+          screenings: [
+            { test_name: 'Metabólico', result: 'normal', date: today },
+            { test_name: 'Auditivo', result: 'normal', date: today }
+          ],
+          vaccines: [
+            { name: 'BCG (Tuberculosis)', applied: true, date: today, lot: 'BCG-99A' },
+            { name: 'Hepatitis B (Dosis Recién Nacido)', applied: true, date: today, lot: 'HB-881' }
+          ]
+        });
+      }, 0);
+    }
+  }, [babyId, db.newborn_records]);
 
-  const handleChange = (field: keyof NewbornRecord, value: any) => {
-    setRecord(prev => ({ ...prev, [field]: value }));
+  const handleChange = (field: keyof NewbornRecord, value: unknown) => {
+    setRecord(prev => ({ ...prev, [field]: value as unknown as NewbornRecord[typeof field] }));
   };
 
   const handleScreeningResultChange = (idx: number, result: string) => {
@@ -60,7 +83,7 @@ export default function NewbornRecordForm({ babyId, onSuccess }: NewbornRecordFo
 
     const records = db.newborn_records || [];
     const index = records.findIndex(r => r.baby_id === babyId);
-    let updatedRecords = [...records];
+    const updatedRecords = [...records];
 
     if (index >= 0) {
       updatedRecords[index] = { ...record };

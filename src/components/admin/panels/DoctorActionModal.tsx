@@ -14,7 +14,9 @@ export default function DoctorActionModal({ action, onClose, onSubmit }: DoctorA
 
   useEffect(() => {
     if (action) {
-      setNote('');
+      setTimeout(() => {
+        setNote('');
+      }, 0);
     }
   }, [action]);
 

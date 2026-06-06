@@ -126,7 +126,7 @@ export default function PrescriptionPrintView({ prescription, onClose }: Prescri
                     </p>
                     {item.instructions && (
                       <p className="text-[9.5px] text-slate-450 italic leading-tight">
-                        Nota: "{item.instructions}"
+                        Nota: &quot;{item.instructions}&quot;
                       </p>
                     )}
                   </div>

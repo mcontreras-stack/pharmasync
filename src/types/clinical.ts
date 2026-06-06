@@ -214,3 +214,11 @@ export interface GrowthRecord {
   height_percentile?: number;
   created_at?: string;
 }
+
+export interface Vaccine {
+  id: string;
+  name: string;
+  target_disease: string;
+  recommended_age_months: number;
+}
+

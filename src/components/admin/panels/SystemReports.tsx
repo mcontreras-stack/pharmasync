@@ -108,7 +108,7 @@ export default function SystemReports() {
               <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-1">1. Objetivo de Datos</label>
               <select
                 value={reportTarget}
-                onChange={(e: any) => setReportTarget(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setReportTarget(e.target.value as 'users' | 'doctors' | 'billing' | 'activity')}
                 className="w-full bg-slate-50 border border-gray-150 rounded-xl p-3 text-xs font-semibold focus:outline-none focus:bg-white focus:border-slate-400"
               >
                 <option value="users">Listado de Usuarios</option>
@@ -123,7 +123,7 @@ export default function SystemReports() {
               <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-1">2. Formato del Archivo</label>
               <select
                 value={reportFormat}
-                onChange={(e: any) => setReportFormat(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setReportFormat(e.target.value as 'csv' | 'excel' | 'pdf')}
                 className="w-full bg-slate-50 border border-gray-150 rounded-xl p-3 text-xs font-semibold focus:outline-none focus:bg-white focus:border-slate-400"
               >
                 <option value="csv">Delimitado por comas (.CSV)</option>

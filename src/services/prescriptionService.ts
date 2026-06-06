@@ -298,8 +298,8 @@ export async function logPrescriptionVerification(
 export async function logPrescriptionChange(
   prescriptionId: string,
   action: string,
-  previousState?: any,
-  newState?: any
+  previousState?: unknown,
+  newState?: unknown
 ): Promise<void> {
   try {
     const { data: { session } } = await supabase.auth.getSession();

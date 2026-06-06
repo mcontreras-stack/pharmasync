@@ -33,8 +33,9 @@ export async function ensureBucketsExist(): Promise<void> {
       public: false,
       fileSizeLimit: 52428800, // 50MB
     });
-  } catch (err: any) {
-    if (err.message && !err.message.includes('already exists')) {
+  } catch (err) {
+    const errorInstance = err as Error;
+    if (errorInstance.message && !errorInstance.message.includes('already exists')) {
       console.error('Error creating professional bucket:', err);
     }
   }
@@ -45,8 +46,9 @@ export async function ensureBucketsExist(): Promise<void> {
       public: false,
       fileSizeLimit: 52428800, // 50MB
     });
-  } catch (err: any) {
-    if (err.message && !err.message.includes('already exists')) {
+  } catch (err) {
+    const errorInstance = err as Error;
+    if (errorInstance.message && !errorInstance.message.includes('already exists')) {
       console.error('Error creating mother bucket:', err);
     }
   }

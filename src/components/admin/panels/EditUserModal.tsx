@@ -16,8 +16,10 @@ export default function EditUserModal({ profile, onClose, onSave }: EditUserModa
 
   useEffect(() => {
     if (profile) {
-      setName(profile.full_name);
-      setEmail(profile.email);
+      setTimeout(() => {
+        setName(profile.full_name);
+        setEmail(profile.email);
+      }, 0);
     }
   }, [profile]);
 

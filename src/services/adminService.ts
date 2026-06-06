@@ -141,6 +141,30 @@ export async function updateUserStatus(userId: string, status: string): Promise<
 }
 
 /**
+ * Suspender a un usuario
+ */
+export async function suspendUser(userId: string, reason?: string): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ status: 'suspended', suspension_reason: reason })
+    .eq('id', userId);
+
+  if (error) throw error;
+}
+
+/**
+ * Reactivar a un usuario
+ */
+export async function reactivateUser(userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ status: 'approved', suspension_reason: null })
+    .eq('id', userId);
+
+  if (error) throw error;
+}
+
+/**
  * Cambiar el rol de un usuario
  */
 export async function changeUserRole(userId: string, role: string): Promise<void> {
@@ -159,7 +183,7 @@ export async function logAdminAction(
   adminId: string,
   action: string,
   recordId: string,
-  details: Record<string, any>
+  details: Record<string, unknown>
 ): Promise<void> {
   try {
     await supabase

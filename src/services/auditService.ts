@@ -8,8 +8,8 @@ export interface AuditInput {
   action: string;
   tableAffected: string;
   recordId: string;
-  oldValue?: any;
-  newValue?: any;
+  oldValue?: unknown;
+  newValue?: unknown;
 }
 
 export function logDataChange(input: AuditInput) {
@@ -44,8 +44,8 @@ export const auditService = {
     action: string,
     tableAffected: string,
     recordId: string,
-    oldValue?: any,
-    newValue?: any
+    oldValue?: unknown,
+    newValue?: unknown
   ) => {
     logDataChange({
       userId,

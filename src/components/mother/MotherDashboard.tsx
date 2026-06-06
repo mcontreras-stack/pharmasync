@@ -19,12 +19,13 @@ export default function MotherDashboard() {
     return !hasActivePregnancy && hasBabies ? 'family' : 'pregnancy';
   });
 
-  if (!user) return null;
-
   const motherId = MOCK_MOTHER_ID;
-  const activePregnancy = db.pregnancies.find(p => p.mother_id === motherId && p.status === 'active');
   const babies = db.babies.filter(b => b.mother_id === motherId);
   const [selectedBabyId, setSelectedBabyId] = useState(babies[0]?.id || '');
+
+  if (!user) return null;
+
+  const activePregnancy = db.pregnancies.find(p => p.mother_id === motherId && p.status === 'active');
 
   // Calculate gestational details for header summary
   const lmp = activePregnancy ? new Date(activePregnancy.last_menstrual_period) : null;

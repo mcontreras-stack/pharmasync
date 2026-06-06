@@ -4,13 +4,30 @@ import React from 'react';
 import { Search, User, Check, X } from 'lucide-react';
 import { getMockDb } from '@/lib/mockDb';
 
+interface PatientProfileType {
+  mother: {
+    id: string;
+  };
+  profile?: {
+    full_name: string;
+  } | null;
+  pregnancy?: {
+    estimated_due_date?: string;
+  } | null;
+}
+
+interface PendingLinkType {
+  id: string;
+  mother_id: string;
+}
+
 interface ObstetricianRosterProps {
-  patientProfiles: any[];
+  patientProfiles: PatientProfileType[];
   selectedMotherId: string;
   onSelectPatient: (id: string) => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
-  pendingLinks: any[];
+  pendingLinks: PendingLinkType[];
   onLinkAction: (linkId: string, action: 'approve' | 'reject') => void;
   pregnancyWeeks: number;
 }

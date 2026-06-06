@@ -37,16 +37,18 @@ export default function AiChatWidget({ isOpen, onClose, contextType = 'mother', 
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      setMessages([
-        { 
-          sender: 'ai', 
-          text: contextType === 'mother' 
-            ? `¡Hola ${user?.full_name || ''}! Soy tu Asistente Clínico AI de Vitara Health. ¿En qué puedo ayudarte hoy respecto a tus síntomas, recetas o control maternal?`
-            : `Hola Dr. ${user?.full_name?.split(' ').pop() || ''}. Estoy lista para ayudarte a generar resúmenes prenatales, redactar notas de evolución o analizar el expediente de este paciente.` 
-        }
-      ]);
+      setTimeout(() => {
+        setMessages([
+          { 
+            sender: 'ai', 
+            text: contextType === 'mother' 
+              ? `¡Hola ${user?.full_name || ''}! Soy tu Asistente Clínico AI de Vitara Health. ¿En qué puedo ayudarte hoy respecto a tus síntomas, recetas o control maternal?`
+              : `Hola Dr. ${user?.full_name?.split(' ').pop() || ''}. Estoy lista para ayudarte a generar resúmenes prenatales, redactar notas de evolución o analizar el expediente de este paciente.` 
+          }
+        ]);
+      }, 0);
     }
-  }, [isOpen, contextType, user]);
+  }, [isOpen, contextType, user, messages.length]);
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || !user || loading) return;
@@ -64,7 +66,7 @@ export default function AiChatWidget({ isOpen, onClose, contextType = 'mother', 
         cost: response.costUsd
       }]);
       setTotalCost(prev => prev + response.costUsd);
-    } catch (err) {
+    } catch {
       setMessages(prev => [...prev, { 
         sender: 'ai', 
         text: 'Lo siento, ha ocurrido un error al procesar tu consulta con el asistente AI. Inténtalo nuevamente.' 

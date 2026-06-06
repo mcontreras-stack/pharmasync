@@ -7,7 +7,19 @@ import NewbornRecordViewer from '../neonatal/NewbornRecordViewer';
 import NewbornRecordForm from '../neonatal/NewbornRecordForm';
 
 interface PediatricianPatientFileProps {
-  selectedBabyProfile: any;
+  selectedBabyProfile: {
+    baby: {
+      id: string;
+      name: string;
+      birth_date: string;
+      birth_weight_grams?: number;
+      birth_height_cm?: number;
+      gender: string;
+    };
+    motherProfile?: {
+      full_name: string;
+    } | null;
+  } | null;
   ageMonths: number;
   onAddVisitClick: () => void;
   onToggleVaccine: (id: string) => void;

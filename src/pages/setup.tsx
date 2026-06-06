@@ -19,23 +19,23 @@ export default function SetupPage() {
   });
 
   useEffect(() => {
-    checkAdminStatus();
-  }, []);
+    const checkAdminStatus = async () => {
+      try {
+        if (typeof window === 'undefined') return;
+        const adminsExist = await hasAdmins();
+        setHasExistingAdmins(adminsExist);
 
-  const checkAdminStatus = async () => {
-    try {
-      if (typeof window === 'undefined') return;
-      const adminsExist = await hasAdmins();
-      setHasExistingAdmins(adminsExist);
-
-      if (adminsExist) {
-        // Si ya hay admins, redirigir al login
-        setTimeout(() => router.push('/login'), 2000);
+        if (adminsExist) {
+          // Si ya hay admins, redirigir al login
+          setTimeout(() => router.push('/login'), 2000);
+        }
+      } catch (err) {
+        console.error('Error checking admin status:', err);
       }
-    } catch (err) {
-      console.error('Error checking admin status:', err);
-    }
-  };
+    };
+
+    checkAdminStatus();
+  }, [router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -104,8 +104,9 @@ export default function SetupPage() {
       }
 
       router.push('/admin');
-    } catch (err: any) {
-      setError(err.message || 'Error inesperado durante la configuración');
+    } catch (err) {
+      const errorInstance = err as Error;
+      setError(errorInstance.message || 'Error inesperado durante la configuración');
       console.error('Setup error details:', err);
     } finally {
       setLoading(false);

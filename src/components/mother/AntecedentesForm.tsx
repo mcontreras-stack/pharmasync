@@ -47,7 +47,7 @@ export default function AntecedentesForm({ patientId, onSuccess }: AntecedentesF
   const handleCheckboxChange = (field: keyof ClinicalHistory) => {
     setFormData(prev => ({
       ...prev,
-      [field]: !prev[field] as any
+      [field]: (!prev[field]) as unknown as ClinicalHistory[typeof field]
     }));
   };
 
@@ -71,7 +71,7 @@ export default function AntecedentesForm({ patientId, onSuccess }: AntecedentesF
 
     const histories = db.clinical_histories || [];
     const index = histories.findIndex(h => h.id === patientId);
-    let updatedHistories = [...histories];
+    const updatedHistories = [...histories];
 
     if (index >= 0) {
       updatedHistories[index] = { ...formData };

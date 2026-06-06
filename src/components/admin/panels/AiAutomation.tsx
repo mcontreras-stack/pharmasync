@@ -32,7 +32,10 @@ export default function AiAutomation() {
   // Stats
   const interactions = db.ai_interactions || [];
   const totalCalls = interactions.length;
-  const totalCost = interactions.reduce((acc, c) => acc + c.cost_usd, 0);
+  const totalCost = interactions.reduce((acc: number, c) => {
+    const interaction = c as { cost_usd: number };
+    return acc + (interaction?.cost_usd || 0);
+  }, 0);
 
   const handleSaveAutomation = (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +130,7 @@ export default function AiAutomation() {
             <div className="flex items-center justify-between p-4 bg-slate-50 border border-gray-100 rounded-2xl">
               <div>
                 <span className="text-xs font-bold text-slate-800 block">Alertas de Vómitos y Presión Prenatal</span>
-                <span className="text-[10px] text-gray-450 mt-0.5 leading-normal block max-w-md">Envía alertas de cuidado automáticas si una madre registra síntomas de intensidad "Alta" o valores de presión sistólica &gt; 130.</span>
+                <span className="text-[10px] text-gray-450 mt-0.5 leading-normal block max-w-md">Envía alertas de cuidado automáticas si una madre registra síntomas de intensidad &quot;Alta&quot; o valores de presión sistólica &gt; 130.</span>
               </div>
               <button onClick={() => setAutoPrenatalAlerts(!autoPrenatalAlerts)}>
                 {autoPrenatalAlerts ? (

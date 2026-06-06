@@ -22,13 +22,16 @@ import DoctorSettingsTab from '@/components/dashboard/DoctorSettingsTab';
 import PrescriptionsTab from '@/components/dashboard/PrescriptionsTab';
 
 export default function RootPage() {
-  const { user, loading, signIn, signUp, signOut, updateUserStatus } = useAuth();
+  const { user, loading, signOut, updateUserStatus } = useAuth();
   const { activeTab } = useTab();
   const [isImpersonating, setIsImpersonating] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setIsImpersonating(!!localStorage.getItem('vitarahealth_admin_impersonator'));
+      const val = !!localStorage.getItem('vitarahealth_admin_impersonator');
+      setTimeout(() => {
+        setIsImpersonating(val);
+      }, 0);
     }
   }, [user]);
 

@@ -4,6 +4,7 @@ import React, { useState, Suspense } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { KeyRound, Lock, CheckCircle2, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 
 function ResetPasswordFormContent() {
   const searchParams = useSearchParams();
@@ -46,8 +47,9 @@ function ResetPasswordFormContent() {
       setTimeout(() => {
         window.location.href = '/';
       }, 3000);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'El código ingresado es incorrecto, expiró o tu cuenta no existe.');
+    } catch (err) {
+      const errorInstance = err as Error;
+      setErrorMsg(errorInstance.message || 'El código ingresado es incorrecto, expiró o tu cuenta no existe.');
     } finally {
       setLoading(false);
     }
@@ -148,12 +150,12 @@ function ResetPasswordFormContent() {
       </form>
 
       <div className="text-center pt-2">
-        <a
+        <Link
           href="/"
           className="text-[10px] text-slate-400 hover:text-white transition-colors flex items-center justify-center gap-1 mx-auto"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Volver al Inicio
-        </a>
+        </Link>
       </div>
     </div>
   );

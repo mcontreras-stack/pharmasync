@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, AdminSubRole } from '@/context/AuthContext';
 import { useTab } from '@/context/TabContext';
 import { Lock } from 'lucide-react';
 
@@ -157,7 +157,7 @@ export default function AdminDashboard() {
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Rol Operativo:</label>
           <select
             value={adminSubRole}
-            onChange={(e: any) => setAdminSubRole(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setAdminSubRole(e.target.value as AdminSubRole)}
             className="bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-xs font-bold text-slate-200 focus:outline-none focus:border-slate-700 cursor-pointer"
           >
             <option value="superadmin">Super Administrador</option>

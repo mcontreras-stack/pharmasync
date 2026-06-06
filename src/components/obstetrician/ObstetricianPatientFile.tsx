@@ -7,7 +7,21 @@ import AntecedentesViewer from '../mother/AntecedentesViewer';
 import AntecedentesForm from '../mother/AntecedentesForm';
 
 interface ObstetricianPatientFileProps {
-  selectedPatient: any;
+  selectedPatient: {
+    pregnancy?: {
+      id: string;
+      last_menstrual_period?: string;
+    } | null;
+    profile?: {
+      full_name: string;
+    } | null;
+    mother: {
+      id: string;
+      phone: string;
+      blood_type: string;
+      allergies?: string;
+    };
+  } | null;
   pregnancyWeeks: number;
   onAddVisitClick: () => void;
 }
@@ -130,7 +144,7 @@ export default function ObstetricianPatientFile({ selectedPatient, pregnancyWeek
                   <p className="text-[11px] text-gray-600 mt-1 font-medium leading-relaxed">
                     Peso: {visit.mother_weight_kg}kg • Presión: {visit.blood_pressure} • FCF: {visit.fetal_heart_rate_bpm} bpm
                   </p>
-                  {visit.notes && <p className="text-[10px] text-gray-400 mt-0.5 italic">"{visit.notes}"</p>}
+                  {visit.notes && <p className="text-[10px] text-gray-400 mt-0.5 italic">&quot;{visit.notes}&quot;</p>}
                 </div>
               </div>
             ))}

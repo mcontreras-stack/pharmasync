@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '@/lib/supabase';
 import { getAllUsers, suspendUser, reactivateUser, changeUserRole, UserProfile } from '@/services/adminService';
 
 export default function AdminUsers() {
@@ -13,22 +12,26 @@ export default function AdminUsers() {
   const [actionType, setActionType] = useState<'suspend' | 'reactivate' | 'changeRole' | null>(null);
   const [newRole, setNewRole] = useState<'mother' | 'obstetrician' | 'pediatrician' | 'admin'>('mother');
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  const loadUsers = async () => {
+  const loadUsers = React.useCallback(async () => {
     try {
       setLoading(true);
       const usersList = await getAllUsers();
       setUsers(usersList);
-    } catch (err: any) {
-      setError(err.message || 'Error al cargar usuarios');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Error al cargar usuarios';
+      setError(errorMsg);
       console.error('Load users error:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadUsers();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [loadUsers]);
 
   const handleSuspend = async (user: UserProfile) => {
     setSelectedUser(user);
@@ -45,7 +48,7 @@ export default function AdminUsers() {
   const handleChangeRole = async (user: UserProfile) => {
     setSelectedUser(user);
     setActionType('changeRole');
-    setNewRole(user.role as any);
+    setNewRole(user.role as 'mother' | 'obstetrician' | 'pediatrician' | 'admin');
     setShowModal(true);
   };
 
@@ -65,8 +68,9 @@ export default function AdminUsers() {
       setSelectedUser(null);
       setActionType(null);
       await loadUsers();
-    } catch (err: any) {
-      setError(err.message || 'Error al realizar la acción');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Error al realizar la acción';
+      setError(errorMsg);
     }
   };
 
@@ -239,7 +243,7 @@ export default function AdminUsers() {
                 </label>
                 <select
                   value={newRole}
-                  onChange={(e) => setNewRole(e.target.value as any)}
+                  onChange={(e) => setNewRole(e.target.value as 'mother' | 'obstetrician' | 'pediatrician' | 'admin')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="mother">Madre</option>

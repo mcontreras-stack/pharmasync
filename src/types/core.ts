@@ -88,3 +88,14 @@ export interface Baby {
   allergies?: string;
   created_at?: string;
 }
+
+export interface DoctorPatientLink {
+  id: string;
+  doctor_id: string;
+  mother_id: string;
+  status: 'pending' | 'active' | 'inactive' | 'rejected';
+  created_at?: string;
+  link_code?: string;
+}
+
+

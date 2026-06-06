@@ -6,7 +6,11 @@ import Sidebar from '../dashboard/Sidebar';
 import BottomNav from '../dashboard/BottomNav';
 
 interface ShellProps {
-  user: any;
+  user: {
+    full_name: string;
+    email: string;
+    status?: string;
+  };
   isImpersonating: boolean;
   onExitImpersonation: () => void;
   renderTabContent: () => React.ReactNode;

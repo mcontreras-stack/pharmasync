@@ -35,8 +35,8 @@ export default function RegisterForm({ onLoginClick }: RegisterFormProps) {
     setLoading(true);
     try {
       await signUp(email, password, fullName, registerRole, phone);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Error al registrar la cuenta. Inténtalo de nuevo.');
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Error al registrar la cuenta. Inténtalo de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -116,7 +116,7 @@ export default function RegisterForm({ onLoginClick }: RegisterFormProps) {
           </label>
           <select
             value={registerRole}
-            onChange={(e: any) => setRegisterRole(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRegisterRole(e.target.value as 'mother' | 'obstetrician' | 'pediatrician')}
             className="w-full bg-slate-955 border border-slate-800 rounded-xl p-2.5 text-xs font-bold text-slate-205 focus:outline-none focus:border-pink-500 cursor-pointer"
             disabled={loading}
           >

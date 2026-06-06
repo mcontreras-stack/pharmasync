@@ -12,7 +12,7 @@ export default function NewbornRecordViewer({ babyId }: NewbornRecordViewerProps
   const db = getMockDb();
 
   const record = db.newborn_records?.find(r => r.baby_id === babyId) || {
-    id: `newborn-${Date.now()}`,
+    id: `newborn-${babyId}`,
     baby_id: babyId,
     pregnancy_id: '',
     apgar_1min: 9,
@@ -22,12 +22,12 @@ export default function NewbornRecordViewer({ babyId }: NewbornRecordViewerProps
     head_circumference_cm: 34.5,
     complications: 'Ninguna reportada',
     screenings: [
-      { test_name: 'Metabólico', result: 'normal', date: new Date().toISOString().split('T')[0] },
-      { test_name: 'Auditivo', result: 'normal', date: new Date().toISOString().split('T')[0] }
+      { test_name: 'Metabólico', result: 'normal', date: '2026-06-06' },
+      { test_name: 'Auditivo', result: 'normal', date: '2026-06-06' }
     ],
     vaccines: [
-      { name: 'BCG (Tuberculosis)', applied: true, date: new Date().toISOString().split('T')[0], lot: 'BCG-99A' },
-      { name: 'Hepatitis B (Dosis Recién Nacido)', applied: true, date: new Date().toISOString().split('T')[0], lot: 'HB-881' }
+      { name: 'BCG (Tuberculosis)', applied: true, date: '2026-06-06', lot: 'BCG-99A' },
+      { name: 'Hepatitis B (Dosis Recién Nacido)', applied: true, date: '2026-06-06', lot: 'HB-881' }
     ]
   } as NewbornRecord;
 

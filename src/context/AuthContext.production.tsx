@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               birth_date: profile.birth_date,
             };
             setUser(userProfile);
-            localStorage.setItem('pharmasync_user', JSON.stringify(userProfile));
+            localStorage.setItem('vitarahealth_user', JSON.stringify(userProfile));
           } else {
             // Si el perfil no existe, crear uno automáticamente
             const newProfile: Profile = {
@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (insertError) throw insertError;
 
             setUser(newProfile);
-            localStorage.setItem('pharmasync_user', JSON.stringify(newProfile));
+            localStorage.setItem('vitarahealth_user', JSON.stringify(newProfile));
           }
         }
       } catch (err) {
@@ -117,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const setAdminSubRole = (role: AdminSubRole) => {
     setAdminSubRoleState(role);
-    localStorage.setItem('pharmasync_admin_subrole', role);
+    localStorage.setItem('vitarahealth_admin_subrole', role);
   };
 
   const signIn = async (email: string, password: string) => {
@@ -155,7 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             birth_date: profile.birth_date,
           };
           setUser(userProfile);
-          localStorage.setItem('pharmasync_user', JSON.stringify(userProfile));
+          localStorage.setItem('vitarahealth_user', JSON.stringify(userProfile));
         } else {
           // Crear perfil automáticamente
           const newProfile: Profile = {
@@ -173,7 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (insertError) throw insertError;
 
           setUser(newProfile);
-          localStorage.setItem('pharmasync_user', JSON.stringify(newProfile));
+          localStorage.setItem('vitarahealth_user', JSON.stringify(newProfile));
         }
       }
     } catch (err) {
@@ -273,7 +273,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         setUser(newProfile);
-        localStorage.setItem('pharmasync_user', JSON.stringify(newProfile));
+        localStorage.setItem('vitarahealth_user', JSON.stringify(newProfile));
       }
     } catch (err) {
       console.error('Sign up error:', err);
@@ -289,8 +289,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
 
       setUser(null);
-      localStorage.removeItem('pharmasync_user');
-      localStorage.removeItem('pharmasync_admin_subrole');
+      localStorage.removeItem('vitarahealth_user');
+      localStorage.removeItem('vitarahealth_admin_subrole');
     } catch (err) {
       console.error('Sign out error:', err);
       throw err;
@@ -324,7 +324,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             birth_date: profile.birth_date,
           };
           setUser(userProfile);
-          localStorage.setItem('pharmasync_user', JSON.stringify(userProfile));
+          localStorage.setItem('vitarahealth_user', JSON.stringify(userProfile));
         }
       }
     } catch (err) {
@@ -345,7 +345,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const updatedUser = { ...user, status };
       setUser(updatedUser);
-      localStorage.setItem('pharmasync_user', JSON.stringify(updatedUser));
+      localStorage.setItem('vitarahealth_user', JSON.stringify(updatedUser));
     } catch (err) {
       console.error('Update user status error:', err);
       throw err;

@@ -108,7 +108,7 @@ export async function createEmptyClinicalHistory(motherId: string): Promise<Clin
 export async function updateClinicalHistoryField(
   motherId: string,
   field: keyof ClinicalHistory,
-  value: any
+  value: ClinicalHistory[keyof ClinicalHistory]
 ): Promise<ClinicalHistory> {
   try {
     const { data, error } = await supabase
@@ -154,8 +154,8 @@ export async function getAllClinicalHistories(): Promise<ClinicalHistory[]> {
 export async function logClinicalHistoryChange(
   motherId: string,
   action: string,
-  previousState?: any,
-  newState?: any
+  previousState?: unknown,
+  newState?: unknown
 ): Promise<void> {
   try {
     const { data: { session } } = await supabase.auth.getSession();

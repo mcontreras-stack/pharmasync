@@ -27,8 +27,8 @@ export default function LoginForm({ onForgotPasswordClick, onRegisterClick }: Lo
     setLoading(true);
     try {
       await signIn(email, password);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Error al iniciar sesión. Verifica tus credenciales.');
     } finally {
       setLoading(false);
     }
@@ -44,8 +44,8 @@ export default function LoginForm({ onForgotPasswordClick, onRegisterClick }: Lo
     setLoading(true);
     try {
       await signIn(demoEmail, '123456', role);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Error al iniciar sesión demo.');
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Error al iniciar sesión demo.');
     } finally {
       setLoading(false);
     }

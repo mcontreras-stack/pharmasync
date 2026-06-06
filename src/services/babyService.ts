@@ -178,7 +178,7 @@ export async function recordNewbornData(
   feedingType: 'breast' | 'bottle' | 'mixed' = 'breast',
   firstFeedingTime?: string,
   notes?: string
-): Promise<any> {
+): Promise<unknown> {
   try {
     // Actualizar el bebé con información adicional si es necesaria
     // En este caso, solo registramos en la tabla de visitas pediátricas iniciales
@@ -190,7 +190,7 @@ export async function recordNewbornData(
           visit_date: new Date().toISOString().split('T')[0],
           weight_kg: 0, // Se actualizará después
           height_cm: 0, // Se actualizará después
-          notes: `Newborn Record - APGAR: ${apgarScore1min}/${apgarScore5min}/${apgarScore10min}, Complications: ${birthComplications || 'None'}, Feeding: ${feedingType}. ${notes || ''}`,
+          notes: `Newborn Record - APGAR: ${apgarScore1min}/${apgarScore5min}/${apgarScore10min}, Resuscitation: ${resuscitationRequired ? 'Yes' : 'No'}, Complications: ${birthComplications || 'None'}, Feeding: ${feedingType}. Medications: ${medicationsGiven || 'None'}. First feeding: ${firstFeedingTime || 'N/A'}. ${notes || ''}`,
         },
       ])
       .select()
@@ -311,7 +311,7 @@ export async function recordDevelopmentMilestone(
   targetAgeMonths: number,
   achievedDate?: string,
   notes?: string
-): Promise<any> {
+): Promise<unknown> {
   try {
     const { data, error } = await supabase
       .from('development_milestones')
@@ -341,7 +341,7 @@ export async function recordDevelopmentMilestone(
 /**
  * Obtener hitos de desarrollo de un bebé
  */
-export async function getBabyMilestones(babyId: string): Promise<any[]> {
+export async function getBabyMilestones(babyId: string): Promise<unknown[]> {
   try {
     const { data, error } = await supabase
       .from('development_milestones')
@@ -351,7 +351,7 @@ export async function getBabyMilestones(babyId: string): Promise<any[]> {
 
     if (error) throw error;
 
-    return (data || []) as any[];
+    return (data || []) as unknown[];
   } catch (err) {
     console.error('Error fetching baby milestones:', err);
     throw err;
@@ -370,7 +370,7 @@ export async function recordGrowthMeasurement(
   headCircCm?: number,
   weightPercentile?: number,
   heightPercentile?: number
-): Promise<any> {
+): Promise<unknown> {
   try {
     const { data, error } = await supabase
       .from('growth_records')
@@ -401,7 +401,7 @@ export async function recordGrowthMeasurement(
 /**
  * Obtener historial de crecimiento de un bebé
  */
-export async function getBabyGrowthHistory(babyId: string): Promise<any[]> {
+export async function getBabyGrowthHistory(babyId: string): Promise<unknown[]> {
   try {
     const { data, error } = await supabase
       .from('growth_records')
@@ -411,7 +411,7 @@ export async function getBabyGrowthHistory(babyId: string): Promise<any[]> {
 
     if (error) throw error;
 
-    return (data || []) as any[];
+    return (data || []) as unknown[];
   } catch (err) {
     console.error('Error fetching baby growth history:', err);
     throw err;

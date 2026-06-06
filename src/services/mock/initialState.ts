@@ -2,10 +2,12 @@ import {
   Profile, Mother, Doctor, Pregnancy, Baby, Appointment, 
   PrenatalVisit, PediatricVisit, LabResult, UltrasoundResult, 
   Symptom, VitalSign, Prescription, ClinicalHistory, NewbornRecord, 
-  NewbornScreening, NewbornVaccine, AuditLog, SaaSPlanType,
+  NewbornScreening, NewbornVaccine, AuditLog,
   SaaSSubscription, CmsArticle, ProfessionalDoc, PrivacyRequest,
   HipaaConsentLog, SupportTicket, MotherDoc, BabyVaccine,
-  DevelopmentMilestone, GrowthRecord
+  DevelopmentMilestone, GrowthRecord, AIInteraction, AIRiskAlert,
+  AccessLog, SecurityEvent, UserSession, DoctorPatientLink, Message,
+  Vaccine
 } from '@/types/database';
 
 export const MOCK_MOTHER_ID = 'mother-maria-123';
@@ -26,13 +28,13 @@ export interface MockDatabase {
   ultrasound_results: UltrasoundResult[];
   symptoms: Symptom[];
   vital_signs: VitalSign[];
-  vaccines: any[];
+  vaccines: Vaccine[];
   baby_vaccines: BabyVaccine[];
   growth_records: GrowthRecord[];
   development_milestones: DevelopmentMilestone[];
-  messages: any[];
-  doctor_patient_links: any[];
-  notifications: any[];
+  messages: Message[];
+  doctor_patient_links: DoctorPatientLink[];
+  notifications: unknown[];
   support_tickets: SupportTicket[];
   cms_articles: CmsArticle[];
   professional_documents: ProfessionalDoc[];
@@ -40,23 +42,23 @@ export interface MockDatabase {
   prescriptions: Prescription[];
   // New tables for production upgrade
   clinical_histories: ClinicalHistory[];
-  prescription_verifications: any[];
-  prescription_audit_logs: any[];
+  prescription_verifications: unknown[];
+  prescription_audit_logs: unknown[];
   audit_logs: AuditLog[];
-  doctor_verification_history: any[];
-  appointment_reminders: any[];
-  appointment_notes: any[];
-  message_read_status: any[];
-  message_attachments: any[];
-  ai_interactions: any[];
-  ai_risk_alerts: any[];
-  ai_patient_summaries: any[];
+  doctor_verification_history: unknown[];
+  appointment_reminders: unknown[];
+  appointment_notes: unknown[];
+  message_read_status: unknown[];
+  message_attachments: unknown[];
+  ai_interactions: AIInteraction[];
+  ai_risk_alerts: AIRiskAlert[];
+  ai_patient_summaries: unknown[];
   newborn_records: NewbornRecord[];
   newborn_screenings: NewbornScreening[];
   newborn_vaccines: NewbornVaccine[];
-  access_logs: any[];
-  user_sessions: any[];
-  security_events: any[];
+  access_logs: AccessLog[];
+  user_sessions: UserSession[];
+  security_events: SecurityEvent[];
   privacy_requests: PrivacyRequest[];
   hipaa_consent_logs: HipaaConsentLog[];
   subscriptions: SaaSSubscription[];

@@ -15,8 +15,6 @@ export default function ProfileTab() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'support'>('profile');
 
-  if (!user) return null;
-
   // Find mother details
   const motherDetails = db.mothers.find(m => m.id === MOCK_MOTHER_ID) || {
     id: MOCK_MOTHER_ID,
@@ -35,6 +33,8 @@ export default function ProfileTab() {
   const [bloodType, setBloodType] = useState(motherDetails.blood_type);
   const [allergies, setAllergies] = useState(motherDetails.allergies || '');
   const [avatarPreview, setAvatarPreview] = useState(user?.avatar_url || '');
+
+  if (!user) return null;
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

@@ -16,7 +16,9 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
 
   // Reset tab to 'home' whenever the user role switches
   useEffect(() => {
-    setActiveTab('home');
+    setTimeout(() => {
+      setActiveTab('home');
+    }, 0);
   }, [user?.role]);
 
   return (

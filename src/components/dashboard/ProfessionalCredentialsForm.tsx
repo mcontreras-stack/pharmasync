@@ -17,13 +17,26 @@ export default function ProfessionalCredentialsForm() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
 
-  if (!user) return null;
+  const [fallbackInviteCode, setFallbackInviteCode] = useState('');
+
+  useEffect(() => {
+    if (user && !fallbackInviteCode) {
+      const code = 'DR-' + user.full_name?.substring(0, 3).toUpperCase() + '-' + Math.floor(Math.random() * 9000 + 1000);
+      setTimeout(() => {
+        setFallbackInviteCode(code);
+      }, 0);
+    }
+  }, [user, fallbackInviteCode]);
 
   // Find doctor details
-  const doctor = db.doctors.find(d => d.id === user.id) || {
+  const doctor = user ? (db.doctors.find(d => d.id === user.id) || {
     id: user.id, license_number: '', specialty: 'obstetrician' as const, phone: '', clinic_address: '', consultation_hours: '',
     verification_status: 'pending' as const, exequatur: '', cmd_number: '', university: '', graduation_year: undefined, subspecialty: '',
-    invite_code: 'DR-' + user.full_name?.substring(0, 3).toUpperCase() + '-' + Math.floor(Math.random() * 9000 + 1000)
+    invite_code: fallbackInviteCode
+  }) : {
+    id: '', license_number: '', specialty: 'obstetrician' as const, phone: '', clinic_address: '', consultation_hours: '',
+    verification_status: 'pending' as const, exequatur: '', cmd_number: '', university: '', graduation_year: undefined, subspecialty: '',
+    invite_code: ''
   };
 
   const [exequatur, setExequatur] = useState(doctor.exequatur || '');
@@ -39,8 +52,14 @@ export default function ProfessionalCredentialsForm() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
-    if (doctor.signature_url) setHasSignature(true);
+    if (doctor.signature_url) {
+      setTimeout(() => {
+        setHasSignature(true);
+      }, 0);
+    }
   }, [doctor.signature_url]);
+
+  if (!user) return null;
 
   const getCoords = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>, canvas: HTMLCanvasElement) => {
     const rect = canvas.getBoundingClientRect();

@@ -18,7 +18,7 @@ export function getMockDb(): MockDatabase {
     const keys = Object.keys(initialDb) as Array<keyof MockDatabase>;
     for (const key of keys) {
       if (!parsed[key]) {
-        parsed[key] = initialDb[key] as any;
+        parsed[key] = initialDb[key] as never;
         modified = true;
       }
     }
@@ -27,7 +27,7 @@ export function getMockDb(): MockDatabase {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
     }
     return parsed;
-  } catch (e) {
+  } catch {
     return initialDb;
   }
 }

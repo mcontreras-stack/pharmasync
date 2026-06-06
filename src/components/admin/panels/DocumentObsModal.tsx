@@ -20,7 +20,9 @@ export default function DocumentObsModal({
 
   useEffect(() => {
     if (documentId) {
-      setNotes(initialNotes);
+      setTimeout(() => {
+        setNotes(initialNotes);
+      }, 0);
     }
   }, [documentId, initialNotes]);
 

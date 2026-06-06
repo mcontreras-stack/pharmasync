@@ -32,8 +32,8 @@ export default function ForgotForm({ onBackToLogin }: ForgotFormProps) {
       await requestPasswordReset(email);
       setSuccessMsg('Código de recuperación enviado. Revisa tu buzón de correo.');
       setStep(2);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Error al solicitar el código de recuperación.');
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Error al solicitar el código de recuperación.');
     } finally {
       setLoading(false);
     }
@@ -60,8 +60,8 @@ export default function ForgotForm({ onBackToLogin }: ForgotFormProps) {
       setTimeout(() => {
         onBackToLogin();
       }, 3000);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'El código ingresado es incorrecto o expiró.');
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'El código ingresado es incorrecto o expiró.');
     } finally {
       setLoading(false);
     }

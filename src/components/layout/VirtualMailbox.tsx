@@ -12,7 +12,9 @@ export default function VirtualMailbox() {
 
   useEffect(() => {
     // Load initial emails
-    setEmails(emailService.getEmails());
+    setTimeout(() => {
+      setEmails(emailService.getEmails());
+    }, 0);
 
     const handleNewEmail = (e: Event) => {
       const customEvent = e as CustomEvent<SentEmail>;

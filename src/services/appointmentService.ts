@@ -16,7 +16,7 @@ export interface Appointment {
   doctor_notes?: string;
   cancellation_reason?: string;
   rescheduled_from?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_at: string;
 }
 
@@ -294,7 +294,7 @@ export async function recordPrenatalVisit(
   uterineHeightCm?: number,
   notes?: string,
   recommendations?: string
-): Promise<any> {
+): Promise<unknown> {
   try {
     const { data, error } = await supabase
       .from('prenatal_visits')
@@ -337,7 +337,7 @@ export async function recordPediatricVisit(
   developmentStatus?: string,
   notes?: string,
   recommendations?: string
-): Promise<any> {
+): Promise<unknown> {
   try {
     const { data, error } = await supabase
       .from('pediatric_visits')

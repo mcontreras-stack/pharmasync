@@ -13,6 +13,13 @@ interface PrescriptionListProps {
 
 export default function PrescriptionList({ user, prescriptions, onSelect, onPrint }: PrescriptionListProps) {
   const isMother = user.role === 'mother';
+  const [now, setNow] = React.useState<number>(0);
+
+  React.useEffect(() => {
+    setTimeout(() => {
+      setNow(Date.now());
+    }, 0);
+  }, []);
 
   return (
     <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-4">
@@ -28,7 +35,7 @@ export default function PrescriptionList({ user, prescriptions, onSelect, onPrin
 
       <div className="space-y-3 overflow-y-auto max-h-[480px] pr-1">
         {prescriptions.map((pres) => {
-          const isExpired = new Date(pres.expiry_date).getTime() < Date.now();
+          const isExpired = now > 0 && new Date(pres.expiry_date).getTime() < now;
           const statusColors = {
             activa: 'bg-emerald-50 text-emerald-700 border-emerald-100',
             expirada: 'bg-rose-50 text-rose-700 border-rose-100',

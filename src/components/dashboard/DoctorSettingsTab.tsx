@@ -27,11 +27,19 @@ export default function DoctorSettingsTab() {
   const [successMsg, setSuccessMsg] = useState('');
   const [activeTab, setActiveTab] = useState<'consultorio' | 'credentials' | 'billing' | 'support'>('consultorio');
 
-  if (!user) return null;
-
   // Find doctor details
-  const doctor = db.doctors.find(d => d.id === user.id) || {
+  const doctor = user ? (db.doctors.find(d => d.id === user.id) || {
     id: user.id,
+    license_number: 'N/A',
+    specialty: 'obstetrician',
+    phone: '',
+    clinic_address: '',
+    consultation_hours: '',
+    verification_status: 'pending',
+    exequatur: 'EQ-00000',
+    invite_code: 'DR-XYZ-0000'
+  } as Doctor) : {
+    id: '',
     license_number: 'N/A',
     specialty: 'obstetrician',
     phone: '',
@@ -46,6 +54,8 @@ export default function DoctorSettingsTab() {
   const [consultHours, setConsultHours] = useState(doctor.consultation_hours || '');
   const [clinicPhone, setClinicPhone] = useState(doctor.clinic_phone || '');
   const [avatarPreview, setAvatarPreview] = useState(user?.avatar_url || '');
+
+  if (!user) return null;
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

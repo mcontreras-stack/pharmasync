@@ -115,7 +115,7 @@ export default function CmsContent() {
           {/* Category filter select */}
           <select
             value={categoryFilter}
-            onChange={(e: any) => setCategoryFilter(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCategoryFilter(e.target.value as 'all' | 'Pregnancy' | 'Prenatal' | 'Pediatric' | 'General')}
             className="bg-slate-50 border border-gray-150 rounded-xl p-2 text-xs font-semibold text-slate-700 focus:outline-none"
           >
             <option value="all">Todas las Categorías</option>
@@ -226,7 +226,7 @@ export default function CmsContent() {
                   <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Categoría</label>
                   <select
                     value={newCategory}
-                    onChange={(e: any) => setNewCategory(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewCategory(e.target.value as 'Pregnancy' | 'Prenatal' | 'Pediatric' | 'General')}
                     className="w-full bg-slate-50 border border-gray-150 rounded-xl p-3 text-xs font-semibold focus:outline-none focus:bg-white focus:border-slate-400"
                   >
                     <option value="Pregnancy">Embarazo Activo</option>
@@ -240,7 +240,7 @@ export default function CmsContent() {
                   <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Estado Inicial</label>
                   <select
                     value={newStatus}
-                    onChange={(e: any) => setNewStatus(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewStatus(e.target.value as 'draft' | 'published')}
                     className="w-full bg-slate-50 border border-gray-150 rounded-xl p-3 text-xs font-semibold focus:outline-none focus:bg-white focus:border-slate-400"
                   >
                     <option value="draft">Borrador</option>

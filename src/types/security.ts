@@ -7,8 +7,8 @@ export interface AuditLog {
   action: string;
   table_affected: string;
   record_id: string;
-  old_value?: any;
-  new_value?: any;
+  old_value?: unknown;
+  new_value?: unknown;
   created_at: string;
   event?: string;
   email?: string;
@@ -43,4 +43,23 @@ export interface HipaaConsentLog {
   version: string | number;
   ip_address: string;
   accepted_at: string;
+}
+
+export interface SecurityEvent {
+  id: string;
+  user_id: string | null;
+  event_type: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  description: string;
+  created_at: string;
+}
+
+export interface UserSession {
+  id: string;
+  user_id: string;
+  ip_address: string;
+  user_agent: string;
+  started_at: string;
+  last_activity_at: string;
+  revoked_at: string | null;
 }

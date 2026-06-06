@@ -12,26 +12,26 @@ export default function ChatTab() {
   const [inputVal, setInputVal] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  if (!user) return null;
-
   // Query users that are connected for chat
-  // If Mother: Obstetrician (Dra. Ana) and Pediatrician (Dr. Andrés)
-  // If Doctor: Linked mothers
-  let chatParticipants: Profile[] = [];
-  if (user.role === 'mother') {
-    chatParticipants = db.profiles.filter(p => p.role === 'obstetrician' || p.role === 'pediatrician');
-  } else {
-    // Doctors only chat with mothers connected to them
-    chatParticipants = db.profiles.filter(p => {
-      if (p.role !== 'mother') return false;
-      return db.doctor_patient_links.some(dpl => dpl.doctor_id === user.id && dpl.mother_id === p.id && dpl.status === 'active');
-    });
-  }
+  const chatParticipants = React.useMemo(() => {
+    if (!user) return [];
+    if (user.role === 'mother') {
+      return db.profiles.filter(p => p.role === 'obstetrician' || p.role === 'pediatrician');
+    } else {
+      // Doctors only chat with mothers connected to them
+      return db.profiles.filter(p => {
+        if (p.role !== 'mother') return false;
+        return db.doctor_patient_links.some(dpl => dpl.doctor_id === user.id && dpl.mother_id === p.id && dpl.status === 'active');
+      });
+    }
+  }, [user, db.profiles, db.doctor_patient_links]);
 
   // Set default active chat user if not set
   useEffect(() => {
     if (chatParticipants.length > 0 && !activeChatUserId) {
-      setActiveChatUserId(chatParticipants[0].id);
+      setTimeout(() => {
+        setActiveChatUserId(chatParticipants[0].id);
+      }, 0);
     }
   }, [chatParticipants, activeChatUserId]);
 
@@ -39,6 +39,8 @@ export default function ChatTab() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeChatUserId, db.messages]);
+
+  if (!user) return null;
 
   const activeChatUser = db.profiles.find(p => p.id === activeChatUserId);
 

@@ -5,7 +5,11 @@ import { FileText, Trash2, UploadCloud } from 'lucide-react';
 import { getMockDb, saveMockDb, MotherDoc, ProfessionalDoc } from '@/lib/mockDb';
 
 interface OnboardingWizardProps {
-  user: any;
+  user: {
+    id: string;
+    role: 'mother' | 'obstetrician' | 'pediatrician' | 'admin';
+    phone?: string;
+  };
   onSignOut: () => void;
   onSubmitted: () => void;
 }

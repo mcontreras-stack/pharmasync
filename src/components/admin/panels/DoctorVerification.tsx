@@ -32,7 +32,7 @@ export default function DoctorVerification() {
   const pendingDocs = db.doctors.filter(d => d.verification_status === 'pending');
   const otherDocs = db.doctors.filter(d => d.verification_status !== 'pending');
 
-  const handleStatusChange = (doctorId: string, nextStatus: 'approved' | 'rejected' | 'pending_corrections', note: string) => {
+  const handleStatusChange = React.useCallback((doctorId: string, nextStatus: 'approved' | 'rejected' | 'pending_corrections', note: string) => {
     const updatedDoctors = db.doctors.map(d => {
       if (d.id === doctorId) {
         const historyEntry = {
@@ -101,7 +101,7 @@ export default function DoctorVerification() {
     setDb(updatedDb);
     saveMockDb(updatedDb);
     setActiveDoctorAction(null);
-  };
+  }, [db]);
 
   const handleDocumentStatusChange = (docId: string, nextStatus: 'approved' | 'rejected', notes?: string) => {
     const updatedDocs = (db.professional_documents || []).map(doc => {

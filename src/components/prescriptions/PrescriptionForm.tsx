@@ -33,13 +33,13 @@ export default function PrescriptionForm({ user, onClose, onSuccess }: Prescript
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const handleItemChange = (index: number, field: keyof PrescriptionItem, value: any) => {
+  const handleItemChange = (index: number, field: keyof PrescriptionItem, value: unknown) => {
     const updated = [...items];
-    updated[index] = { ...updated[index], [field]: value };
+    updated[index] = { ...updated[index], [field]: value as unknown as PrescriptionItem[typeof field] };
     setItems(updated);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = React.useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMotherId || !diagnosis.trim() || items.some(i => !i.generic_name.trim())) return;
 
@@ -87,7 +87,7 @@ export default function PrescriptionForm({ user, onClose, onSuccess }: Prescript
     });
 
     onSuccess();
-  };
+  }, [selectedMotherId, diagnosis, items, selectedBabyId, isControlled, db, user, babies, onSuccess]);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 backdrop-blur-xs">
