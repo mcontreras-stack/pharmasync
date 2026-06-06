@@ -35,17 +35,20 @@ export interface ProfessionalProfile extends UserProfile {
  */
 export async function hasAdmins(): Promise<boolean> {
   try {
-    const { data, error } = await supabase
+    // Usamos una consulta directa y rápida para contar administradores
+    const { count, error } = await supabase
       .from('profiles')
-      .select('id')
-      .eq('role', 'admin')
-      .limit(1);
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'admin');
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error checking for admins:', error);
+      return false;
+    }
 
-    return (data && data.length > 0) || false;
+    return (count || 0) > 0;
   } catch (err) {
-    console.error('Error checking for admins:', err);
+    console.error('Exception checking for admins:', err);
     return false;
   }
 }
@@ -55,48 +58,32 @@ export async function hasAdmins(): Promise<boolean> {
  */
 export async function getSystemStats(): Promise<AdminStats> {
   try {
-    const { data: users, error: usersError } = await supabase
-      .from('profiles')
-      .select('id', { count: 'exact' });
-
-    const { data: mothers, error: mothersError } = await supabase
-      .from('mothers')
-      .select('id', { count: 'exact' });
-
-    const { data: professionals, error: profError } = await supabase
-      .from('professionals')
-      .select('id', { count: 'exact' });
-
-    const { data: prescriptions, error: prescError } = await supabase
-      .from('prescriptions')
-      .select('id', { count: 'exact' });
-
-    const { data: appointments, error: apptError } = await supabase
-      .from('appointments')
-      .select('id', { count: 'exact' });
-
-    const { data: pendingDocs, error: docsError } = await supabase
-      .from('professional_documents')
-      .select('id', { count: 'exact' })
-      .eq('status', 'pending');
-
-    const { data: pendingProfs, error: profPendError } = await supabase
-      .from('professionals')
-      .select('id', { count: 'exact' })
-      .eq('is_verified', false);
-
-    if (usersError || mothersError || profError || prescError || apptError || docsError || profPendError) {
-      throw new Error('Error fetching stats');
-    }
+    const [
+      { count: users },
+      { count: mothers },
+      { count: professionals },
+      { count: prescriptions },
+      { count: appointments },
+      { count: pendingDocs },
+      { count: pendingProfs }
+    ] = await Promise.all([
+      supabase.from('profiles').select('*', { count: 'exact', head: true }),
+      supabase.from('mothers').select('*', { count: 'exact', head: true }),
+      supabase.from('professionals').select('*', { count: 'exact', head: true }),
+      supabase.from('prescriptions').select('*', { count: 'exact', head: true }),
+      supabase.from('appointments').select('*', { count: 'exact', head: true }),
+      supabase.from('professional_documents').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('professionals').select('*', { count: 'exact', head: true }).eq('is_verified', false)
+    ]);
 
     return {
-      totalUsers: users?.length || 0,
-      totalMothers: mothers?.length || 0,
-      totalProfessionals: professionals?.length || 0,
-      totalPrescriptions: prescriptions?.length || 0,
-      totalAppointments: appointments?.length || 0,
-      pendingDocuments: pendingDocs?.length || 0,
-      pendingProfessionals: pendingProfs?.length || 0,
+      totalUsers: users || 0,
+      totalMothers: mothers || 0,
+      totalProfessionals: professionals || 0,
+      totalPrescriptions: prescriptions || 0,
+      totalAppointments: appointments || 0,
+      pendingDocuments: pendingDocs || 0,
+      pendingProfessionals: pendingProfs || 0,
     };
   } catch (err) {
     console.error('Error getting system stats:', err);
@@ -115,7 +102,6 @@ export async function getAllUsers(): Promise<UserProfile[]> {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-
     return (data || []) as UserProfile[];
   } catch (err) {
     console.error('Error fetching all users:', err);
@@ -135,7 +121,6 @@ export async function getPendingProfessionals(): Promise<ProfessionalProfile[]> 
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-
     return (data || []) as ProfessionalProfile[];
   } catch (err) {
     console.error('Error fetching pending professionals:', err);
@@ -144,275 +129,27 @@ export async function getPendingProfessionals(): Promise<ProfessionalProfile[]> 
 }
 
 /**
- * Obtener todos los profesionales verificados
+ * Actualizar el estado de un usuario
  */
-export async function getVerifiedProfessionals(): Promise<ProfessionalProfile[]> {
-  try {
-    const { data, error } = await supabase
-      .from('professionals')
-      .select('*')
-      .eq('is_verified', true)
-      .order('created_at', { ascending: false });
+export async function updateUserStatus(userId: string, status: string): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ status })
+    .eq('id', userId);
 
-    if (error) throw error;
-
-    return (data || []) as ProfessionalProfile[];
-  } catch (err) {
-    console.error('Error fetching verified professionals:', err);
-    throw err;
-  }
-}
-
-/**
- * Verificar un profesional
- */
-export async function verifyProfessional(
-  professionalId: string,
-  verificationNotes?: string
-): Promise<ProfessionalProfile> {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session?.user) {
-      throw new Error('No authenticated user');
-    }
-
-    const { data, error } = await supabase
-      .from('professionals')
-      .update({
-        is_verified: true,
-        verification_date: new Date().toISOString(),
-        verified_by: session.user.id,
-        verification_notes: verificationNotes,
-      })
-      .eq('id', professionalId)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Registrar en audit log
-    await logAdminAction(
-      session.user.id,
-      'verify_professional',
-      professionalId,
-      { verified: true, notes: verificationNotes }
-    );
-
-    return data as ProfessionalProfile;
-  } catch (err) {
-    console.error('Error verifying professional:', err);
-    throw err;
-  }
-}
-
-/**
- * Rechazar un profesional
- */
-export async function rejectProfessional(
-  professionalId: string,
-  rejectionReason: string
-): Promise<void> {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session?.user) {
-      throw new Error('No authenticated user');
-    }
-
-    // Eliminar el profesional
-    const { error } = await supabase
-      .from('professionals')
-      .delete()
-      .eq('id', professionalId);
-
-    if (error) throw error;
-
-    // Registrar en audit log
-    await logAdminAction(
-      session.user.id,
-      'reject_professional',
-      professionalId,
-      { reason: rejectionReason }
-    );
-  } catch (err) {
-    console.error('Error rejecting professional:', err);
-    throw err;
-  }
-}
-
-/**
- * Suspender a un usuario
- */
-export async function suspendUser(userId: string, reason: string): Promise<UserProfile> {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session?.user) {
-      throw new Error('No authenticated user');
-    }
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({
-        status: 'suspended',
-      })
-      .eq('id', userId)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Registrar en audit log
-    await logAdminAction(
-      session.user.id,
-      'suspend_user',
-      userId,
-      { reason }
-    );
-
-    return data as UserProfile;
-  } catch (err) {
-    console.error('Error suspending user:', err);
-    throw err;
-  }
-}
-
-/**
- * Reactivar a un usuario
- */
-export async function reactivateUser(userId: string): Promise<UserProfile> {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session?.user) {
-      throw new Error('No authenticated user');
-    }
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({
-        status: 'approved',
-      })
-      .eq('id', userId)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Registrar en audit log
-    await logAdminAction(
-      session.user.id,
-      'reactivate_user',
-      userId,
-      {}
-    );
-
-    return data as UserProfile;
-  } catch (err) {
-    console.error('Error reactivating user:', err);
-    throw err;
-  }
+  if (error) throw error;
 }
 
 /**
  * Cambiar el rol de un usuario
  */
-export async function changeUserRole(
-  userId: string,
-  newRole: 'mother' | 'obstetrician' | 'pediatrician' | 'admin'
-): Promise<UserProfile> {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
+export async function changeUserRole(userId: string, role: string): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ role })
+    .eq('id', userId);
 
-    if (!session?.user) {
-      throw new Error('No authenticated user');
-    }
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({
-        role: newRole,
-      })
-      .eq('id', userId)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Registrar en audit log
-    await logAdminAction(
-      session.user.id,
-      'change_user_role',
-      userId,
-      { newRole }
-    );
-
-    return data as UserProfile;
-  } catch (err) {
-    console.error('Error changing user role:', err);
-    throw err;
-  }
-}
-
-/**
- * Obtener todas las recetas (para auditoría)
- */
-export async function getAllPrescriptions(limit: number = 100): Promise<any[]> {
-  try {
-    const { data, error } = await supabase
-      .from('prescriptions')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-
-    return (data || []) as any[];
-  } catch (err) {
-    console.error('Error fetching all prescriptions:', err);
-    throw err;
-  }
-}
-
-/**
- * Obtener todas las citas (para auditoría)
- */
-export async function getAllAppointments(limit: number = 100): Promise<any[]> {
-  try {
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-
-    return (data || []) as any[];
-  } catch (err) {
-    console.error('Error fetching all appointments:', err);
-    throw err;
-  }
-}
-
-/**
- * Obtener logs de auditoría
- */
-export async function getAuditLogs(limit: number = 100): Promise<any[]> {
-  try {
-    const { data, error } = await supabase
-      .from('audit_logs')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-
-    return (data || []) as any[];
-  } catch (err) {
-    console.error('Error fetching audit logs:', err);
-    throw err;
-  }
+  if (error) throw error;
 }
 
 /**
@@ -425,13 +162,6 @@ export async function logAdminAction(
   details: Record<string, any>
 ): Promise<void> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session?.user) {
-      console.warn('No authenticated user for admin action log');
-      return;
-    }
-
     await supabase
       .from('audit_logs')
       .insert([
@@ -446,107 +176,5 @@ export async function logAdminAction(
       ]);
   } catch (err) {
     console.error('Error logging admin action:', err);
-  }
-}
-
-/**
- * Obtener documentos pendientes de revisión
- */
-export async function getPendingDocuments(): Promise<any[]> {
-  try {
-    const { data: profDocs, error: profError } = await supabase
-      .from('professional_documents')
-      .select('*')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true });
-
-    if (profError) throw profError;
-
-    const { data: motherDocs, error: motherError } = await supabase
-      .from('mother_documents')
-      .select('*')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true });
-
-    if (motherError) throw motherError;
-
-    return [...(profDocs || []), ...(motherDocs || [])] as any[];
-  } catch (err) {
-    console.error('Error fetching pending documents:', err);
-    throw err;
-  }
-}
-
-/**
- * Aprobar un documento
- */
-export async function approveDocument(
-  documentId: string,
-  documentType: 'professional' | 'mother',
-  notes?: string
-): Promise<void> {
-  try {
-    const table = documentType === 'professional' ? 'professional_documents' : 'mother_documents';
-
-    const { error } = await supabase
-      .from(table)
-      .update({
-        status: 'approved',
-        notes,
-      })
-      .eq('id', documentId);
-
-    if (error) throw error;
-
-    // Registrar en audit log
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      await logAdminAction(
-        session.user.id,
-        'approve_document',
-        documentId,
-        { documentType, notes }
-      );
-    }
-  } catch (err) {
-    console.error('Error approving document:', err);
-    throw err;
-  }
-}
-
-/**
- * Rechazar un documento
- */
-export async function rejectDocument(
-  documentId: string,
-  documentType: 'professional' | 'mother',
-  rejectionReason: string
-): Promise<void> {
-  try {
-    const table = documentType === 'professional' ? 'professional_documents' : 'mother_documents';
-
-    const { error } = await supabase
-      .from(table)
-      .update({
-        status: 'needs_correction',
-        notes: rejectionReason,
-      })
-      .eq('id', documentId);
-
-    if (error) throw error;
-
-    // Registrar en audit log
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      await logAdminAction(
-        session.user.id,
-        'reject_document',
-        documentId,
-        { documentType, reason: rejectionReason }
-      );
-    }
-  } catch (err) {
-    console.error('Error rejecting document:', err);
-    throw err;
   }
 }
