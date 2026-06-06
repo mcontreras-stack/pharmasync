@@ -58,13 +58,31 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 -- ─────────────────────────────────────────────────────────────────────────────
 -- PASO 3: POLÍTICAS RLS
 -- ─────────────────────────────────────────────────────────────────────────────
--- Limpiar políticas anteriores para evitar duplicados
+-- ⚠️ IMPORTANTE: Las políticas que hacen SELECT dentro de la misma tabla
+-- causan recursión infinita en PostgreSQL. Usamos una función SECURITY DEFINER
+-- para romper el ciclo.
+
+-- Función auxiliar: devuelve el role del usuario actual sin pasar por RLS
+CREATE OR REPLACE FUNCTION public.get_my_role()
+RETURNS TEXT
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid() LIMIT 1;
+$$;
+
+-- DROP todas las políticas viejas
 DROP POLICY IF EXISTS "profiles_select_own"                ON public.profiles;
 DROP POLICY IF EXISTS "profiles_update_own"                ON public.profiles;
 DROP POLICY IF EXISTS "profiles_select_admin"              ON public.profiles;
 DROP POLICY IF EXISTS "profiles_update_admin"              ON public.profiles;
 DROP POLICY IF EXISTS "profiles_delete_admin"              ON public.profiles;
 DROP POLICY IF EXISTS "profiles_insert_trigger"            ON public.profiles;
+DROP POLICY IF EXISTS "profiles_select_authenticated"      ON public.profiles;
+DROP POLICY IF EXISTS "profiles_update_authenticated"      ON public.profiles;
+DROP POLICY IF EXISTS "profiles_delete_authenticated"      ON public.profiles;
 DROP POLICY IF EXISTS "Users can view their own profile"   ON public.profiles;
 DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Admins can view all profiles"       ON public.profiles;
@@ -72,54 +90,31 @@ DROP POLICY IF EXISTS "Admins can update all profiles"     ON public.profiles;
 DROP POLICY IF EXISTS "Admins can delete profiles"         ON public.profiles;
 DROP POLICY IF EXISTS "Allow insert during signup"         ON public.profiles;
 
--- Usuario autenticado: ve su propio perfil
-CREATE POLICY "profiles_select_own"
-  ON public.profiles FOR SELECT
-  TO authenticated
-  USING (auth.uid() = id);
-
--- Usuario autenticado: actualiza su propio perfil
-CREATE POLICY "profiles_update_own"
-  ON public.profiles FOR UPDATE
-  TO authenticated
-  USING (auth.uid() = id)
-  WITH CHECK (auth.uid() = id);
-
--- Admin: ve TODOS los perfiles
-CREATE POLICY "profiles_select_admin"
+-- SELECT: el usuario ve su propio perfil O si es admin ve todos
+CREATE POLICY "profiles_select_authenticated"
   ON public.profiles FOR SELECT
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles AS me
-      WHERE me.id = auth.uid() AND me.role = 'admin'
-    )
+    auth.uid() = id                   -- propio perfil
+    OR public.get_my_role() = 'admin' -- o es admin (sin recursión)
   );
 
--- Admin: actualiza TODOS los perfiles
-CREATE POLICY "profiles_update_admin"
+-- UPDATE: propio perfil O admin puede editar todos
+CREATE POLICY "profiles_update_authenticated"
   ON public.profiles FOR UPDATE
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles AS me
-      WHERE me.id = auth.uid() AND me.role = 'admin'
-    )
+    auth.uid() = id
+    OR public.get_my_role() = 'admin'
   );
 
--- Admin: elimina perfiles
-CREATE POLICY "profiles_delete_admin"
+-- DELETE: solo admin
+CREATE POLICY "profiles_delete_authenticated"
   ON public.profiles FOR DELETE
   TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles AS me
-      WHERE me.id = auth.uid() AND me.role = 'admin'
-    )
-  );
+  USING (public.get_my_role() = 'admin');
 
--- Trigger (service_role): puede insertar sin auth.uid()
--- WITH CHECK (true) es necesario porque el trigger corre antes de la sesión
+-- INSERT: trigger (service_role) y registro de nuevos usuarios
 CREATE POLICY "profiles_insert_trigger"
   ON public.profiles FOR INSERT
   WITH CHECK (true);
