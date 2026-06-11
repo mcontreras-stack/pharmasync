@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Profile } from '@/lib/mockDb';
-import { Search, UserCheck, UserX, Trash2, Edit2, FileText, UserCheck2, Eye, X, History, AlertCircle, Check } from 'lucide-react';
+import { Search, UserCheck, UserX, Trash2, Edit2, History, AlertCircle, Check, UserPlus, KeyRound } from 'lucide-react';
 import EditUserModal from './EditUserModal';
 import UserLogsDrawer from './UserLogsDrawer';
-import { supabase } from '@/lib/supabase';
-import { getAllUsers, suspendUser, reactivateUser } from '@/services/adminService';
+import CreateUserModal, { CreateUserData } from './CreateUserModal';
+import ResetPasswordModal from './ResetPasswordModal';
+import { getAllUsers, suspendUser, reactivateUser, approveUser, deleteUserProfile, updateUserProfile, createUser, resetUserPassword } from '@/services/adminService';
 
 type RealProfile = {
   id: string;
@@ -28,6 +29,8 @@ export default function UserManagement() {
   // Drawer & Modal States
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [activeLogUser, setActiveLogUser] = useState<Profile | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [resetTarget, setResetTarget] = useState<RealProfile | null>(null);
 
   const loadData = async () => {
     try {
@@ -54,7 +57,9 @@ export default function UserManagement() {
   };
 
   useEffect(() => {
-    loadData();
+    const t = setTimeout(() => { loadData(); }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Filters
@@ -94,7 +99,7 @@ export default function UserManagement() {
   const handleDeleteUser = async (userId: string) => {
     if (!window.confirm('¿Eliminar este usuario permanentemente?')) return;
     try {
-      await supabase.from('profiles').delete().eq('id', userId);
+      await deleteUserProfile(userId);
       setProfiles(prev => prev.filter(p => p.id !== userId));
     } catch (err) {
       console.error('[UserManagement] delete error:', err);
@@ -104,15 +109,10 @@ export default function UserManagement() {
   // Action: Approve user
   const handleApproveUser = async (userId: string) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ status: 'approved' })
-        .eq('id', userId);
-      if (!error) {
-        setProfiles(prev =>
-          prev.map(p => (p.id === userId ? { ...p, status: 'approved' } : p))
-        );
-      }
+      await approveUser(userId);
+      setProfiles(prev =>
+        prev.map(p => (p.id === userId ? { ...p, status: 'approved' } : p))
+      );
     } catch (err) {
       console.error('[UserManagement] approve error:', err);
     }
@@ -167,6 +167,13 @@ export default function UserManagement() {
           <h2 className="text-base font-black text-slate-800">Listado de Usuarios Registrados</h2>
           <p className="text-[10px] text-gray-400 mt-0.5">Controla perfiles, edita credenciales y suspende accesos</p>
         </div>
+        <button
+          onClick={() => setCreateOpen(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-950 text-white rounded-2xl text-xs font-black shadow-xs transition-colors cursor-pointer self-start sm:self-auto"
+        >
+          <UserPlus className="h-4 w-4" />
+          Crear Usuario
+        </button>
       </div>
 
       {/* Error Banner */}
@@ -319,6 +326,15 @@ export default function UserManagement() {
                   <Edit2 className="h-3 w-3" />
                 </button>
 
+                {/* Reset Password */}
+                <button
+                  onClick={() => setResetTarget(profile)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors cursor-pointer"
+                  title="Resetear contraseña"
+                >
+                  <KeyRound className="h-3 w-3" />
+                </button>
+
                 {/* Logs */}
                 <button
                   onClick={() => setActiveLogUser(profile as unknown as Profile)}
@@ -350,10 +366,7 @@ export default function UserManagement() {
           profile={editingProfile}
           onClose={() => setEditingProfile(null)}
           onSave={async (name: string, email: string) => {
-            await supabase
-              .from('profiles')
-              .update({ full_name: name, email })
-              .eq('id', editingProfile.id);
+            await updateUserProfile(editingProfile.id, name, email);
             setProfiles(prev =>
               prev.map(p => p.id === editingProfile.id ? { ...p, full_name: name, email } : p)
             );
@@ -366,6 +379,26 @@ export default function UserManagement() {
           user={activeLogUser}
           logs={[]}
           onClose={() => setActiveLogUser(null)}
+        />
+      )}
+
+      <CreateUserModal
+        isOpen={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreate={async (data: CreateUserData) => {
+          await createUser(data);
+          await loadData();
+        }}
+      />
+
+      {resetTarget && (
+        <ResetPasswordModal
+          isOpen
+          userName={resetTarget.full_name || resetTarget.email}
+          onClose={() => setResetTarget(null)}
+          onReset={async (newPassword: string) => {
+            await resetUserPassword(resetTarget.id, newPassword);
+          }}
         />
       )}
     </div>

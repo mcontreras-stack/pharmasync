@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getMockDb, saveMockDb, MOCK_MOTHER_ID, Mother } from '@/lib/mockDb';
-import { 
+import { getMockDb, saveMockDb } from '@/lib/mockDb';
+import { getMotherRecord, saveMotherRecord } from '@/services/motherService';
+import {
   User, Phone, Calendar, Heart, ShieldAlert, CheckCircle2, UploadCloud, CreditCard, MessageSquare
 } from 'lucide-react';
 import BillingSubTab from '../dashboard/BillingSubTab';
@@ -11,28 +12,33 @@ import SupportTicketsSubTab from '../dashboard/SupportTicketsSubTab';
 
 export default function ProfileTab() {
   const { user, refreshUser } = useAuth();
-  const [db, setDb] = useState(getMockDb());
   const [showSuccess, setShowSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'support'>('profile');
 
-  // Find mother details
-  const motherDetails = db.mothers.find(m => m.id === MOCK_MOTHER_ID) || {
-    id: MOCK_MOTHER_ID,
-    phone: '+54 9 11 5555-1234',
-    birth_date: '1998-04-12',
-    emergency_contact_name: 'Juan López (Esposo)',
-    emergency_contact_phone: '+54 9 11 5555-9999',
-    blood_type: 'O+',
-    allergies: 'Penicilina'
-  };
-
-  const [phone, setPhone] = useState(motherDetails.phone);
-  const [birthDate, setBirthDate] = useState(motherDetails.birth_date);
-  const [emergencyName, setEmergencyName] = useState(motherDetails.emergency_contact_name);
-  const [emergencyPhone, setEmergencyPhone] = useState(motherDetails.emergency_contact_phone);
-  const [bloodType, setBloodType] = useState(motherDetails.blood_type);
-  const [allergies, setAllergies] = useState(motherDetails.allergies || '');
+  // Los campos inician en blanco; se llenan con lo que la usuaria haya guardado
+  const [phone, setPhone] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [emergencyName, setEmergencyName] = useState('');
+  const [emergencyPhone, setEmergencyPhone] = useState('');
+  const [bloodType, setBloodType] = useState('');
+  const [allergies, setAllergies] = useState('');
   const [avatarPreview, setAvatarPreview] = useState(user?.avatar_url || '');
+
+  const motherId = user?.id || '';
+
+  useEffect(() => {
+    if (!motherId) return;
+    getMotherRecord(motherId).then(record => {
+      if (!record) return;
+      setPhone(record.phone || '');
+      setBirthDate(record.birth_date || '');
+      setEmergencyName(record.emergency_contact_name || '');
+      setEmergencyPhone(record.emergency_contact_phone || '');
+      setBloodType(record.blood_type || '');
+      setAllergies(record.allergies || '');
+    }).catch(err => console.error('[ProfileTab] Error cargando ficha:', err));
+  }, [motherId]);
 
   if (!user) return null;
 
@@ -54,13 +60,10 @@ export default function ProfileTab() {
             
             const updatedUser = { ...user, avatar_url: base64String };
             localStorage.setItem('vitarahealth_user', JSON.stringify(updatedUser));
-            
-            const updatedDb = {
-              ...db,
-              profiles: db.profiles.map(p => p.id === user.id ? { ...p, avatar_url: base64String } : p)
-            };
-            setDb(updatedDb);
-            saveMockDb(updatedDb);
+
+            const db = getMockDb();
+            db.profiles = db.profiles.map(p => p.id === user.id ? { ...p, avatar_url: base64String } : p);
+            saveMockDb(db);
             refreshUser();
           }
         };
@@ -70,26 +73,23 @@ export default function ProfileTab() {
     }
   };
 
-  const handleUpdateProfile = (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const updatedMother: Mother = {
-      id: MOCK_MOTHER_ID,
-      phone,
-      birth_date: birthDate,
-      emergency_contact_name: emergencyName,
-      emergency_contact_phone: emergencyPhone,
-      blood_type: bloodType,
-      allergies
-    };
-
-    const updatedMothers = db.mothers.map(m => m.id === MOCK_MOTHER_ID ? updatedMother : m);
-    const updatedDb = { ...db, mothers: updatedMothers };
-    
-    setDb(updatedDb);
-    saveMockDb(updatedDb);
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 2000);
+    setSaveError(null);
+    try {
+      await saveMotherRecord(motherId, {
+        phone,
+        birth_date: birthDate,
+        emergency_contact_name: emergencyName,
+        emergency_contact_phone: emergencyPhone,
+        blood_type: bloodType,
+        allergies,
+      });
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2000);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'No se pudo guardar la ficha.');
+    }
   };
 
   return (
@@ -239,6 +239,12 @@ export default function ProfileTab() {
               <div className="bg-emerald-50 text-emerald-700 border border-emerald-100 p-3 rounded-2xl text-xs text-center flex items-center justify-center gap-1.5 font-bold">
                 <CheckCircle2 className="h-4.5 w-4.5" />
                 <span>Ficha médica actualizada exitosamente</span>
+              </div>
+            )}
+
+            {saveError && (
+              <div className="bg-rose-50 text-rose-600 border border-rose-100 p-3 rounded-2xl text-xs text-center font-bold">
+                {saveError}
               </div>
             )}
 

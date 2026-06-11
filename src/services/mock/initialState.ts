@@ -101,10 +101,10 @@ export const initialDb: MockDatabase = {
     { id: 'ultra-1', pregnancy_id: 'preg-maria-active', scan_date: '2026-04-25', gestational_week: 22, findings: 'Feto único, activo. Frecuencia cardíaca: 145 bpm. Placenta anterior.', file_url: 'https://vitarahealth-demo.s3.amazonaws.com/ultrasounds/scan1.jpg' }
   ],
   symptoms: [
-    { id: 'sym-1', pregnancy_id: 'preg-maria-active', symptom_name: 'Náuseas matutinas', intensity: 'Medio', log_date: '2026-06-03', notes: 'Leve mareo al despertar' }
+    { id: 'sym-1', mother_id: MOCK_MOTHER_ID, pregnancy_id: 'preg-maria-active', symptom_name: 'Náuseas matutinas', intensity: 'Medio', log_date: '2026-06-03', notes: 'Leve mareo al despertar' }
   ],
   vital_signs: [
-    { id: 'vit-1', pregnancy_id: 'preg-maria-active', weight_kg: 69.2, systolic_bp: 112, diastolic_bp: 72, log_date: '2026-06-03' }
+    { id: 'vit-1', mother_id: MOCK_MOTHER_ID, pregnancy_id: 'preg-maria-active', weight_kg: 69.2, systolic_bp: 112, diastolic_bp: 72, log_date: '2026-06-03' }
   ],
   vaccines: [
     { id: 'vac-1', name: 'BCG', target_disease: 'Tuberculosis', recommended_age_months: 0 },

@@ -1,43 +1,90 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getMockDb, saveMockDb, MOCK_MOTHER_ID, Baby, BabyVaccine, DevelopmentMilestone } from '@/lib/mockDb';
-import { Heart, Baby as BabyIcon, BrainCircuit } from 'lucide-react';
+import { useTab } from '@/context/TabContext';
+import { getMockDb, saveMockDb, Baby, Pregnancy, Mother } from '@/lib/mockDb';
+import { Heart, Baby as BabyIcon, BrainCircuit, CalendarHeart, ClipboardList, Loader2 } from 'lucide-react';
 import PregnancyView from './PregnancyView';
 import FamilyView from './FamilyView';
 import AiChatWidget from '../ai/AiChatWidget';
+import PregnancySetupModal from './PregnancySetupModal';
+import BirthRegisterModal from './BirthRegisterModal';
+import { getActivePregnancy, getBabies, getMotherRecord, createPregnancy, registerBirth } from '@/services/motherService';
 
 export default function MotherDashboard() {
   const { user } = useAuth();
-  const [db, setDb] = useState(getMockDb());
+  const { setActiveTab: setShellTab } = useTab();
   const [aiOpen, setAiOpen] = useState(false);
-  const [activeMode, setActiveMode] = useState<'pregnancy' | 'family'>(() => {
-    const database = getMockDb();
-    const hasActivePregnancy = database.pregnancies.some(p => p.mother_id === MOCK_MOTHER_ID && p.status === 'active');
-    const hasBabies = database.babies.some(b => b.mother_id === MOCK_MOTHER_ID);
-    return !hasActivePregnancy && hasBabies ? 'family' : 'pregnancy';
-  });
+  const [loading, setLoading] = useState(true);
+  const [activePregnancy, setActivePregnancy] = useState<Pregnancy | null>(null);
+  const [babies, setBabies] = useState<Baby[]>([]);
+  const [motherRecord, setMotherRecord] = useState<Mother | null>(null);
+  const [activeMode, setActiveMode] = useState<'pregnancy' | 'family'>('pregnancy');
+  const [selectedBabyId, setSelectedBabyId] = useState('');
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [birthOpen, setBirthOpen] = useState(false);
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
 
-  const motherId = MOCK_MOTHER_ID;
-  const babies = db.babies.filter(b => b.mother_id === motherId);
-  const [selectedBabyId, setSelectedBabyId] = useState(babies[0]?.id || '');
+  const motherId = user?.id || '';
+
+  const loadData = useCallback(async () => {
+    if (!motherId) return;
+    setLoading(true);
+    setOnboardingDismissed(localStorage.getItem(`vitarahealth_onboarding_done_${motherId}`) === 'true');
+    try {
+      const [pregnancy, babyList, record] = await Promise.all([
+        getActivePregnancy(motherId),
+        getBabies(motherId),
+        getMotherRecord(motherId),
+      ]);
+      setActivePregnancy(pregnancy);
+      setBabies(babyList);
+      setMotherRecord(record);
+      setSelectedBabyId(prev => prev || babyList[0]?.id || '');
+      setActiveMode(prev => (!pregnancy && babyList.length > 0 && prev === 'pregnancy') ? 'family' : prev);
+    } catch (err) {
+      console.error('[MotherDashboard] Error cargando datos:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [motherId]);
+
+  useEffect(() => {
+    const t = setTimeout(() => { loadData(); }, 0);
+    return () => clearTimeout(t);
+  }, [loadData]);
 
   if (!user) return null;
 
-  const activePregnancy = db.pregnancies.find(p => p.mother_id === motherId && p.status === 'active');
-
   // Calculate gestational details for header summary
   const lmp = activePregnancy ? new Date(activePregnancy.last_menstrual_period) : null;
-  const weeksText = lmp 
+  const weeksText = lmp
     ? `Semana ${Math.floor(Math.ceil(Math.abs(new Date().getTime() - lmp.getTime()) / (1000 * 60 * 60 * 24)) / 7)} de Gestación`
     : 'Gestión y Control de tus Hijos';
 
+  // ¿Primer inicio sin información cargada?
+  const profileIncomplete = !motherRecord || (!motherRecord.birth_date && !motherRecord.blood_type);
+  const showOnboarding = !loading && !onboardingDismissed && profileIncomplete && !activePregnancy && babies.length === 0;
+
+  const dismissOnboarding = () => {
+    setOnboardingDismissed(true);
+    localStorage.setItem(`vitarahealth_onboarding_done_${motherId}`, 'true');
+  };
+
+  const handleCreatePregnancy = async (lmpDate: string, edd: string, notes?: string) => {
+    await createPregnancy(motherId, lmpDate, edd, notes);
+    dismissOnboarding();
+    await loadData();
+    setActiveMode('pregnancy');
+  };
+
   const handleLinkDoctor = async (code: string): Promise<{ success: boolean; message: string }> => {
+    const db = getMockDb();
     const cleanCode = code.toUpperCase().trim();
-    const targetDoc = db.doctors.find(d => 
-      (d.invite_code && d.invite_code.toUpperCase() === cleanCode) || 
-      (d.id === 'doctor-ana-456' && cleanCode === 'OB-ANA-28') || 
+    const targetDoc = db.doctors.find(d =>
+      (d.invite_code && d.invite_code.toUpperCase() === cleanCode) ||
+      (d.id === 'doctor-ana-456' && cleanCode === 'OB-ANA-28') ||
       (d.id === 'doctor-andres-789' && cleanCode === 'PE-AND-04')
     );
 
@@ -45,7 +92,7 @@ export default function MotherDashboard() {
       return { success: false, message: 'Código de invitación no encontrado.' };
     }
 
-    const exists = (db.doctor_patient_links || []).some(lnk => 
+    const exists = (db.doctor_patient_links || []).some(lnk =>
       lnk.doctor_id === targetDoc.id && lnk.mother_id === motherId && lnk.status !== 'inactive'
     );
 
@@ -53,96 +100,59 @@ export default function MotherDashboard() {
       return { success: false, message: 'Ya tienes una vinculación activa con este especialista.' };
     }
 
-    const newLink = {
+    db.doctor_patient_links = [...(db.doctor_patient_links || []), {
       id: `lnk-${Date.now()}`,
       doctor_id: targetDoc.id,
       mother_id: motherId,
       link_code: cleanCode,
       status: 'pending' as const
-    };
-
-    const updatedDb = {
-      ...db,
-      doctor_patient_links: [...(db.doctor_patient_links || []), newLink]
-    };
-    setDb(updatedDb);
-    saveMockDb(updatedDb);
+    }];
+    saveMockDb(db);
     return { success: true, message: 'Vínculo solicitado correctamente. Pendiente de aprobación.' };
   };
 
   const handleRevokeLink = (linkId: string) => {
-    const updatedLinks = db.doctor_patient_links.map(l => {
-      if (l.id === linkId) return { ...l, status: 'inactive' as const };
-      return l;
-    });
-
+    const db = getMockDb();
     const link = db.doctor_patient_links.find(l => l.id === linkId);
-    let updatedPregnancies = db.pregnancies;
-    let updatedBabies = db.babies;
+    db.doctor_patient_links = db.doctor_patient_links.map(l =>
+      l.id === linkId ? { ...l, status: 'inactive' as const } : l
+    );
 
     if (link) {
       const doc = db.doctors.find(d => d.id === link.doctor_id);
       if (doc?.specialty === 'obstetrician') {
-        updatedPregnancies = db.pregnancies.map(p => p.mother_id === motherId && p.obstetrician_id === link.doctor_id ? { ...p, obstetrician_id: null } : p);
+        db.pregnancies = db.pregnancies.map(p => p.mother_id === motherId && p.obstetrician_id === link.doctor_id ? { ...p, obstetrician_id: null } : p);
       } else {
-        updatedBabies = db.babies.map(b => b.mother_id === motherId && b.pediatrician_id === link.doctor_id ? { ...b, pediatrician_id: null } : b);
+        db.babies = db.babies.map(b => b.mother_id === motherId && b.pediatrician_id === link.doctor_id ? { ...b, pediatrician_id: null } : b);
       }
     }
-
-    const updatedDb = {
-      ...db,
-      doctor_patient_links: updatedLinks,
-      pregnancies: updatedPregnancies,
-      babies: updatedBabies
-    };
-    setDb(updatedDb);
-    saveMockDb(updatedDb);
+    saveMockDb(db);
+    loadData();
   };
 
-  const handleRegisterBirth = (name: string, date: string, gender: string, weight?: number, height?: number) => {
-    if (!activePregnancy) return;
-
-    const newBaby: Baby = {
-      id: `baby-${Date.now()}`,
-      mother_id: motherId,
-      pregnancy_id: activePregnancy.id,
+  const handleRegisterBirth = async (name: string, date: string, gender: string, weight?: number, height?: number) => {
+    const baby = await registerBirth(motherId, {
       name,
       birth_date: date,
+      gender,
       birth_weight_grams: weight,
       birth_height_cm: height,
-      gender,
-      pediatrician_id: null
-    };
-
-    const updatedPregnancies = db.pregnancies.map(p => p.id === activePregnancy.id ? { ...p, status: 'completed' as const } : p);
-
-    const babyVaccines: BabyVaccine[] = db.vaccines.map(v => ({
-      id: `bvac-${Date.now()}-${v.id}`,
-      baby_id: newBaby.id,
-      vaccine_id: v.id,
-      status: v.recommended_age_months === 0 ? 'applied' : 'pending',
-      applied_date: v.recommended_age_months === 0 ? date : undefined
-    }));
-
-    const milestones: DevelopmentMilestone[] = [
-      { id: `mil-${Date.now()}-1`, baby_id: newBaby.id, category: 'Motor', milestone_name: 'Sostiene la cabeza erguida', target_age_months: 3, status: 'pending' },
-      { id: `mil-${Date.now()}-2`, baby_id: newBaby.id, category: 'Social', milestone_name: 'Sonrisa social espontánea', target_age_months: 2, status: 'pending' },
-      { id: `mil-${Date.now()}-3`, baby_id: newBaby.id, category: 'Lenguaje', milestone_name: 'Balbucea sonidos', target_age_months: 4, status: 'pending' }
-    ];
-
-    const updatedDb = {
-      ...db,
-      pregnancies: updatedPregnancies,
-      babies: [...db.babies, newBaby],
-      baby_vaccines: [...db.baby_vaccines, ...babyVaccines],
-      development_milestones: [...db.development_milestones, ...milestones]
-    };
-
-    setDb(updatedDb);
-    saveMockDb(updatedDb);
-    setSelectedBabyId(newBaby.id);
+      pregnancy_id: activePregnancy?.id || null,
+    });
+    setBirthOpen(false);
+    dismissOnboarding();
+    await loadData();
+    setSelectedBabyId(baby.id);
     setActiveMode('family');
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="h-8 w-8 text-pink-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto select-none">
@@ -175,34 +185,98 @@ export default function MotherDashboard() {
         </div>
       </div>
 
+      {/* Onboarding de primer inicio: pedir la información de la usuaria */}
+      {showOnboarding && (
+        <div className="bg-gradient-to-br from-pink-500 to-rose-500 rounded-3xl p-6 text-white shadow-lg space-y-4">
+          <div>
+            <h2 className="text-lg font-black">¡Bienvenida! Completemos tu información 📋</h2>
+            <p className="text-xs text-pink-100 mt-1">
+              Para que el sistema muestre tus datos reales necesitamos conocerte. Los campos que no completes quedarán en blanco hasta que los agregues.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              onClick={() => setSetupOpen(true)}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white text-pink-600 rounded-xl text-xs font-black hover:bg-pink-50 transition-colors cursor-pointer"
+            >
+              <CalendarHeart className="h-4 w-4" />
+              Estoy embarazada — Registrar
+            </button>
+            <button
+              onClick={() => { setBirthOpen(true); }}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white/15 border border-white/40 text-white rounded-xl text-xs font-black hover:bg-white/25 transition-colors cursor-pointer"
+            >
+              <BabyIcon className="h-4 w-4" />
+              Ya tengo hijos — Registrar
+            </button>
+            <button
+              onClick={() => setShellTab('perfil')}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white/15 border border-white/40 text-white rounded-xl text-xs font-black hover:bg-white/25 transition-colors cursor-pointer"
+            >
+              <ClipboardList className="h-4 w-4" />
+              Completar mi Ficha Médica
+            </button>
+          </div>
+          <button onClick={dismissOnboarding} className="text-[10px] text-pink-100 underline hover:text-white cursor-pointer">
+            Omitir por ahora
+          </button>
+        </div>
+      )}
+
       {activeMode === 'pregnancy' && activePregnancy ? (
-        <PregnancyView 
-          activePregnancy={activePregnancy} 
-          onGraduation={handleRegisterBirth} 
-          onLinkDoctor={handleLinkDoctor} 
-          onRevokeLink={handleRevokeLink} 
+        <PregnancyView
+          activePregnancy={activePregnancy}
+          onGraduation={handleRegisterBirth}
+          onLinkDoctor={handleLinkDoctor}
+          onRevokeLink={handleRevokeLink}
         />
       ) : activeMode === 'pregnancy' ? (
         <div className="bg-white rounded-3xl p-10 border border-gray-100 shadow-sm text-center max-w-lg mx-auto space-y-4 text-slate-800">
           <span className="text-5xl block">🤰</span>
           <h2 className="text-xl font-bold">No tienes un embarazo activo registrado</h2>
           <p className="text-xs text-gray-400">Comience registrando su embarazo actual para hacer seguimiento semana a semana.</p>
+          <button
+            onClick={() => setSetupOpen(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-xs font-black shadow-sm transition-colors cursor-pointer"
+          >
+            <CalendarHeart className="h-4 w-4" />
+            Registrar mi Embarazo
+          </button>
         </div>
       ) : babies.length > 0 ? (
-        <FamilyView 
-          babies={babies} 
-          selectedBabyId={selectedBabyId} 
-          onSelectBaby={setSelectedBabyId} 
-          onLinkDoctor={handleLinkDoctor} 
-          onRevokeLink={handleRevokeLink} 
+        <FamilyView
+          babies={babies}
+          selectedBabyId={selectedBabyId}
+          onSelectBaby={setSelectedBabyId}
+          onLinkDoctor={handleLinkDoctor}
+          onRevokeLink={handleRevokeLink}
         />
       ) : (
         <div className="bg-white rounded-3xl p-10 border border-gray-100 shadow-sm text-center max-w-lg mx-auto space-y-4 text-slate-800">
           <span className="text-5xl block">👶</span>
           <h2 className="text-xl font-bold">No tienes hijos registrados</h2>
           <p className="text-xs text-gray-400">Si tu embarazo ya finalizó, puedes registrar a tu bebé de inmediato.</p>
+          <button
+            onClick={() => setBirthOpen(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-xs font-black shadow-sm transition-colors cursor-pointer"
+          >
+            <BabyIcon className="h-4 w-4" />
+            Registrar a mi Bebé
+          </button>
         </div>
       )}
+
+      {/* Modales */}
+      <PregnancySetupModal
+        isOpen={setupOpen}
+        onClose={() => setSetupOpen(false)}
+        onRegister={handleCreatePregnancy}
+      />
+      <BirthRegisterModal
+        isOpen={birthOpen}
+        onClose={() => setBirthOpen(false)}
+        onRegister={handleRegisterBirth}
+      />
 
       {/* Floating AI assistant button (Phase 7) */}
       <button

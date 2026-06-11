@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getDataBackend } from '@/lib/backend';
+import { getAllUsers } from '@/services/adminService';
 import { Users, TrendingUp, Heart, Baby, Activity, DollarSign, UserPlus, Percent, UserX, Loader2 } from 'lucide-react';
 
 type Stats = {
@@ -24,13 +25,7 @@ export default function ExecutiveDashboard() {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const { data, error: err } = await supabase
-          .from('profiles')
-          .select('role, status');
-
-        if (err) throw err;
-
-        const profiles = data || [];
+        const profiles: { role: string; status: string }[] = await getAllUsers();
         setStats({
           totalUsers:    profiles.length,
           mothersCount:  profiles.filter(p => p.role === 'mother').length,
@@ -182,7 +177,9 @@ export default function ExecutiveDashboard() {
       </div>
 
       <p className="text-[10px] text-slate-400 text-center">
-        Datos en tiempo real desde Supabase · Actualizado al cargar esta página
+        {getDataBackend() !== 'demo'
+          ? 'Datos en tiempo real desde la base de datos · Actualizado al cargar esta página'
+          : 'Datos de demostración (modo demo) · Configura Supabase o PostgreSQL para ver datos reales'}
       </p>
     </div>
   );

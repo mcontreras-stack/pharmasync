@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { getDataBackend, apiJson, setApiToken, apiFetch } from '@/lib/backend';
 import { getMockDb, saveMockDb, MOCK_MOTHER_ID, MOCK_OBSTETRICIAN_ID, MOCK_PEDIATRICIAN_ID, MOCK_ADMIN_ID, Profile, Doctor } from '@/lib/mockDb';
 import { emailService } from '@/services/emailService';
 
@@ -35,11 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const storedUser = localStorage.getItem('vitarahealth_user');
       const isUserMock = storedUser ? JSON.parse(storedUser).email?.toLowerCase().endsWith('@vitarahealth.com') : false;
       
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
-      const isConfigured = supabaseUrl.length > 0 && supabaseAnonKey.length > 0 && !supabaseUrl.includes('placeholder');
-      
-      return forcedMock || isUserMock || !isConfigured;
+      return forcedMock || isUserMock || getDataBackend() === 'demo';
     }
     return false;
   });
@@ -55,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (typeof window === 'undefined') return;
 
         const forcedMock = localStorage.getItem('vitarahealth_force_mock_mode') === 'true';
-        const useMock = forcedMock || !isSupabaseConfigured();
+        const useMock = forcedMock || getDataBackend() === 'demo';
         setIsMockMode(useMock);
 
         // NOTA: El /setup ya no bloquea el acceso. El admin puede entrar
@@ -70,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const parsedUser = JSON.parse(storedMockUser) as Profile;
 
           // ── Usuario Mock (demo)
-          if (parsedUser.email.toLowerCase().endsWith('@vitarahealth.com') || !isSupabaseConfigured()) {
+          if (parsedUser.email.toLowerCase().endsWith('@vitarahealth.com') || getDataBackend() === 'demo') {
             const db = getMockDb();
             const dbProfile = db.profiles.find(p => p.id === parsedUser.id);
             const activeUser = dbProfile || parsedUser;
@@ -91,6 +88,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           //    pero el perfil ya fue guardado al registrarse. Lo restauramos.
           const PENDING_STATUSES = ['email_pending', 'under_review', 'pending_documents'];
           if (PENDING_STATUSES.includes(parsedUser.status || '')) {
+            setUser(parsedUser);
+            setIsMockMode(false);
+            setLoading(false);
+            return;
+          }
+
+          // ── Backend PostgreSQL: la sesión vive en el token propio
+          if (getDataBackend() === 'postgres') {
             setUser(parsedUser);
             setIsMockMode(false);
             setLoading(false);
@@ -184,7 +189,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const isDemo = email.toLowerCase().endsWith('@vitarahealth.com');
-      
+
+      // ── Backend PostgreSQL (servidor propio)
+      if (getDataBackend() === 'postgres' && password && !isDemo) {
+        const { profile, token } = await apiJson<{ profile: Profile; token: string }>('/api/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email, password }),
+        });
+        setApiToken(token);
+        setUser(profile);
+        localStorage.setItem('vitarahealth_user', JSON.stringify(profile));
+        setIsMockMode(false);
+        if (profile.role === 'admin') {
+          setAdminSubRoleState('superadmin');
+          localStorage.setItem('vitarahealth_admin_subrole', 'superadmin');
+        }
+        return;
+      }
+
       if (isSupabaseConfigured() && password && !isDemo) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -255,6 +277,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const isDemo = email.toLowerCase().endsWith('@vitarahealth.com');
+
+      // ── Backend PostgreSQL (servidor propio)
+      if (getDataBackend() === 'postgres' && password && full_name && role && !isDemo) {
+        const { profile, token } = await apiJson<{ profile: Profile; token: string }>('/api/auth/register', {
+          method: 'POST',
+          body: JSON.stringify({ email, password, full_name, role, phone }),
+        });
+        setApiToken(token);
+        setUser(profile);
+        localStorage.setItem('vitarahealth_user', JSON.stringify(profile));
+        setIsMockMode(false);
+        return;
+      }
 
       if (isSupabaseConfigured() && password && full_name && role && phone && !isDemo) {
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
@@ -332,7 +367,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       localStorage.removeItem('vitarahealth_user');
       setUser(null);
-      if (!isMockMode && isSupabaseConfigured()) {
+      if (getDataBackend() === 'postgres') {
+        await apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+        setApiToken(null);
+      } else if (!isMockMode && isSupabaseConfigured()) {
         await supabase.auth.signOut();
       }
       router.push('/');

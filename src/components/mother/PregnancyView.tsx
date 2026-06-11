@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { 
   Heart, Calendar, Activity, Smile, Shield, PlusCircle, Plus, FileText, ChevronDown, ChevronUp, Edit3
 } from 'lucide-react';
-import { getMockDb, saveMockDb, Pregnancy, Symptom, VitalSign, MOCK_MOTHER_ID } from '@/lib/mockDb';
+import { useAuth } from '@/context/AuthContext';
+import { getMockDb, saveMockDb, Pregnancy, Symptom, VitalSign } from '@/lib/mockDb';
 import SymptomModal from './SymptomModal';
 import VitalsModal from './VitalsModal';
 import LinkDoctorModal from './LinkDoctorModal';
@@ -20,6 +21,7 @@ interface PregnancyViewProps {
 }
 
 export default function PregnancyView({ activePregnancy, onGraduation, onLinkDoctor, onRevokeLink }: PregnancyViewProps) {
+  const { user } = useAuth();
   const [db, setDb] = useState(getMockDb());
   
   // Modals visibility
@@ -30,7 +32,7 @@ export default function PregnancyView({ activePregnancy, onGraduation, onLinkDoc
   const [antecedentesOpen, setAntecedentesOpen] = useState(false);
   const [antecedentesEditOpen, setAntecedentesEditOpen] = useState(false);
 
-  const motherId = MOCK_MOTHER_ID;
+  const motherId = user?.id || activePregnancy.mother_id;
 
   // Obstetrician details
   const obstetricianLink = (db.doctor_patient_links || []).find(lnk => 
@@ -61,6 +63,16 @@ export default function PregnancyView({ activePregnancy, onGraduation, onLinkDoc
     return { name: 'Sandía', icon: '🍉' };
   };
   const fruit = getFruitSize(totalWeeks);
+  const trimester = totalWeeks < 14 ? 'Primer Trimestre' : totalWeeks < 28 ? 'Segundo Trimestre' : 'Tercer Trimestre';
+
+  // Datos propios de la usuaria (en blanco si aún no registra nada)
+  const myVitals = db.vital_signs.filter(v => v.mother_id === motherId || v.pregnancy_id === activePregnancy.id);
+  const latestVitals = myVitals[0];
+  const mySymptoms = db.symptoms.filter(s => s.mother_id === motherId || s.pregnancy_id === activePregnancy.id);
+  const myAppointments = db.appointments.filter(a => a.mother_id === motherId);
+  const nextAppointment = myAppointments[0];
+  const nextApptDate = nextAppointment ? new Date(nextAppointment.appointment_date) : null;
+  const nextApptDoctor = nextAppointment ? db.profiles.find(p => p.id === nextAppointment.doctor_id) : null;
 
   const handleSaveSymptom = (name: string, intensity: 'Bajo' | 'Medio' | 'Alto', notes: string) => {
     const newSymptom: Symptom = {
@@ -102,7 +114,7 @@ export default function PregnancyView({ activePregnancy, onGraduation, onLinkDoc
         <div className="bg-gradient-to-br from-pink-50 via-white to-pink-50 rounded-3xl p-6 border border-pink-100 shadow-sm relative overflow-hidden">
           <div className="absolute right-4 bottom-2 text-8xl opacity-10">🤰</div>
           <div>
-            <span className="text-[10px] font-black text-pink-500 uppercase tracking-widest bg-pink-100/50 px-2 py-0.5 rounded-md">Tercer Trimestre</span>
+            <span className="text-[10px] font-black text-pink-500 uppercase tracking-widest bg-pink-100/50 px-2 py-0.5 rounded-md">{trimester}</span>
             <h2 className="text-2xl font-black text-slate-800 mt-2">Semana {totalWeeks} + {totalRemainingDays} días</h2>
             <p className="text-xs text-gray-500 mt-1">FPP probable: <span className="font-bold text-pink-600">{activePregnancy.estimated_due_date}</span></p>
           </div>
@@ -172,21 +184,21 @@ export default function PregnancyView({ activePregnancy, onGraduation, onLinkDoc
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="bg-pink-50/20 border border-pink-100/30 rounded-2xl p-4 text-center">
               <span className="text-[10px] text-gray-400 block mb-0.5">Peso</span>
-              <span className="text-base font-black text-slate-700">{db.vital_signs[0]?.weight_kg ? `${db.vital_signs[0].weight_kg} kg` : '--'}</span>
+              <span className="text-base font-black text-slate-700">{latestVitals?.weight_kg ? `${latestVitals.weight_kg} kg` : '--'}</span>
             </div>
             <div className="bg-pink-50/20 border border-pink-100/30 rounded-2xl p-4 text-center">
               <span className="text-[10px] text-gray-400 block mb-0.5">Presión</span>
               <span className="text-base font-black text-slate-700">
-                {db.vital_signs[0]?.systolic_bp ? `${db.vital_signs[0].systolic_bp}/${db.vital_signs[0].diastolic_bp}` : '110/70'}
+                {latestVitals?.systolic_bp ? `${latestVitals.systolic_bp}/${latestVitals.diastolic_bp}` : '--'}
               </span>
             </div>
             <div className="bg-pink-50/20 border border-pink-100/30 rounded-2xl p-4 text-center">
               <span className="text-[10px] text-gray-400 block mb-0.5">R. Cardíaco</span>
-              <span className="text-base font-black text-slate-700">{db.vital_signs[0]?.heart_rate_bpm ? `${db.vital_signs[0].heart_rate_bpm} lpm` : '84 lpm'}</span>
+              <span className="text-base font-black text-slate-700">{latestVitals?.heart_rate_bpm ? `${latestVitals.heart_rate_bpm} lpm` : '--'}</span>
             </div>
             <div className="bg-pink-50/20 border border-pink-100/30 rounded-2xl p-4 text-center">
               <span className="text-[10px] text-gray-400 block mb-0.5">Mov. Fetal</span>
-              <span className="text-base font-black text-slate-700">Activo</span>
+              <span className="text-base font-black text-slate-700">{latestVitals ? 'Activo' : '--'}</span>
             </div>
           </div>
         </div>
@@ -204,7 +216,10 @@ export default function PregnancyView({ activePregnancy, onGraduation, onLinkDoc
           </div>
 
           <div className="divide-y divide-gray-50 max-h-48 overflow-y-auto">
-            {db.symptoms.map(sym => (
+            {mySymptoms.length === 0 && (
+              <p className="text-xs text-gray-400 italic py-2">Aún no has registrado síntomas.</p>
+            )}
+            {mySymptoms.map(sym => (
               <div key={sym.id} className="py-2.5 flex items-center justify-between text-xs">
                 <div>
                   <h4 className="font-bold text-slate-700">{sym.symptom_name}</h4>
@@ -225,19 +240,23 @@ export default function PregnancyView({ activePregnancy, onGraduation, onLinkDoc
           <h3 className="font-bold text-gray-800 flex items-center gap-2">
             <Calendar className="h-5 w-5 text-pink-500" /> Próxima Cita
           </h3>
-          {db.appointments[0] ? (
+          {nextAppointment && nextApptDate ? (
             <div className="bg-pink-50/10 border border-pink-100/50 rounded-2xl p-4 space-y-3">
               <div className="flex justify-between items-start">
                 <div>
                   <span className="text-[8px] font-black text-pink-600 uppercase bg-pink-100/40 px-2 py-0.5 rounded">Control Prenatal</span>
-                  <h4 className="text-xs font-bold text-slate-800 mt-2">{db.appointments[0].reason}</h4>
+                  <h4 className="text-xs font-bold text-slate-800 mt-2">{nextAppointment.reason}</h4>
                 </div>
                 <div className="text-center bg-white p-2 border border-pink-100/50 rounded-xl shadow-xs shrink-0">
-                  <span className="text-[8px] text-pink-500 block uppercase font-black">Jun</span>
-                  <span className="text-base font-black text-slate-700 block leading-none">22</span>
+                  <span className="text-[8px] text-pink-500 block uppercase font-black">
+                    {nextApptDate.toLocaleDateString('es', { month: 'short' })}
+                  </span>
+                  <span className="text-base font-black text-slate-700 block leading-none">{nextApptDate.getDate()}</span>
                 </div>
               </div>
-              <p className="text-[10px] text-gray-500 font-medium border-t border-gray-100/50 pt-2">Dra. Ana Rodríguez • 10:30 AM</p>
+              <p className="text-[10px] text-gray-500 font-medium border-t border-gray-100/50 pt-2">
+                {nextApptDoctor?.full_name || 'Especialista'} • {nextApptDate.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+              </p>
             </div>
           ) : (
             <p className="text-xs text-gray-400 italic">No hay citas programadas.</p>

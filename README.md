@@ -1,5 +1,30 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Backends de datos (elige por variables de entorno)
+
+La app soporta **tres modos**, decididos por las variables de entorno (ver `.env.local.example`):
+
+| Modo | Variables | Script SQL |
+|---|---|---|
+| **Demo (mock)** | ninguna | — (datos en `localStorage`, contraseña demo `123456`) |
+| **Supabase** | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` y (en el servidor) `SUPABASE_SERVICE_ROLE_KEY` | `database/setup-supabase.sql` |
+| **PostgreSQL directo** (tu servidor) | `DATABASE_URL`, `NEXT_PUBLIC_DATA_BACKEND=postgres` (opcional `DATABASE_SSL=true`) | `database/setup-postgres.sql` |
+
+### Modo Supabase
+1. Copia `.env.local.example` como `.env.local` y completa las claves (Supabase Studio → Project Settings → API).
+2. Ejecuta `database/setup-supabase.sql` en el SQL Editor (es re-ejecutable; crea las 31 tablas, RLS, trigger de usuarios y políticas de admin).
+3. La `SUPABASE_SERVICE_ROLE_KEY` (solo servidor) habilita en el panel admin: crear usuarios, resetear contraseñas y eliminar cuentas de Auth.
+
+### Modo PostgreSQL (servidor propio)
+1. Crea la base de datos y ejecuta: `psql "$DATABASE_URL" -f database/setup-postgres.sql`.
+2. Define `DATABASE_URL` y `NEXT_PUBLIC_DATA_BACKEND=postgres` en el entorno.
+3. Inicia sesión con el admin inicial `admin@pharmasync.local` / `cambiar123` y **cambia la contraseña** desde Usuarios → Resetear contraseña.
+4. La autenticación usa contraseñas bcrypt y sesiones propias (tabla `sessions`); todo pasa por las rutas `/api` del servidor Next.js.
+
+> Cobertura del modo PostgreSQL: autenticación, gestión de usuarios (admin), ficha de la madre, embarazos y bebés. Los módulos restantes (citas, recetas, chat) siguen disponibles vía Supabase o en modo demo.
+
+En despliegues (Railway, Vercel, VPS) define esas mismas variables en el panel del servicio.
+
 ## Getting Started
 
 First, run the development server:

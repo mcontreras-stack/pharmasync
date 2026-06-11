@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { 
   Baby, CheckCircle, Smile, Shield, TrendingUp, ChevronDown, ChevronUp, Edit3, HeartPulse
 } from 'lucide-react';
-import { getMockDb, saveMockDb, Baby as BabyType, BabyVaccine, DevelopmentMilestone, MOCK_MOTHER_ID } from '@/lib/mockDb';
+import { getMockDb, saveMockDb, Baby as BabyType, BabyVaccine, DevelopmentMilestone } from '@/lib/mockDb';
 import LinkDoctorModal from './LinkDoctorModal';
 import NewbornRecordViewer from '../neonatal/NewbornRecordViewer';
 import NewbornRecordForm from '../neonatal/NewbornRecordForm';
@@ -31,8 +31,8 @@ export default function FamilyView({ babies, selectedBabyId, onSelectBaby, onLin
   if (!selectedBaby) return null;
 
   // Pediatrician details
-  const pediatricianLink = (db.doctor_patient_links || []).find(lnk => 
-    lnk.mother_id === MOCK_MOTHER_ID && 
+  const pediatricianLink = (db.doctor_patient_links || []).find(lnk =>
+    lnk.mother_id === selectedBaby.mother_id &&
     lnk.status !== 'inactive' && 
     db.doctors.find(d => d.id === lnk.doctor_id)?.specialty === 'pediatrician'
   );
