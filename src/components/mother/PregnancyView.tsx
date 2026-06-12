@@ -1,11 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
-import { 
+import React, { useState, useEffect, useCallback } from 'react';
+import {
   Heart, Calendar, Activity, Smile, Shield, PlusCircle, Plus, FileText, ChevronDown, ChevronUp, Edit3
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { getMockDb, saveMockDb, Pregnancy, Symptom, VitalSign } from '@/lib/mockDb';
+import { Pregnancy, Symptom, VitalSign, Appointment } from '@/lib/mockDb';
+import { getSymptoms, addSymptom, getVitals, addVital } from '@/services/motherService';
+import { getLinksForMother, PatientLink } from '@/services/linkService';
+import { getAppointmentsFor } from '@/services/appointmentService';
 import SymptomModal from './SymptomModal';
 import VitalsModal from './VitalsModal';
 import LinkDoctorModal from './LinkDoctorModal';
@@ -22,8 +25,7 @@ interface PregnancyViewProps {
 
 export default function PregnancyView({ activePregnancy, onGraduation, onLinkDoctor, onRevokeLink }: PregnancyViewProps) {
   const { user } = useAuth();
-  const [db, setDb] = useState(getMockDb());
-  
+
   // Modals visibility
   const [symptomOpen, setSymptomOpen] = useState(false);
   const [vitalsOpen, setVitalsOpen] = useState(false);
@@ -34,15 +36,37 @@ export default function PregnancyView({ activePregnancy, onGraduation, onLinkDoc
 
   const motherId = user?.id || activePregnancy.mother_id;
 
+  // Datos clínicos (demo, Supabase o PostgreSQL según configuración)
+  const [mySymptoms, setMySymptoms] = useState<Symptom[]>([]);
+  const [myVitals, setMyVitals] = useState<VitalSign[]>([]);
+  const [myLinks, setMyLinks] = useState<PatientLink[]>([]);
+  const [myAppointments, setMyAppointments] = useState<Appointment[]>([]);
+
+  const loadClinicalData = useCallback(async () => {
+    try {
+      const [symptoms, vitals, links, appointments] = await Promise.all([
+        getSymptoms(motherId, activePregnancy.id),
+        getVitals(motherId, activePregnancy.id),
+        getLinksForMother(motherId),
+        getAppointmentsFor({ id: motherId, role: 'mother' }),
+      ]);
+      setMySymptoms(symptoms);
+      setMyVitals(vitals);
+      setMyLinks(links);
+      setMyAppointments(appointments.filter(a => a.status !== 'cancelled'));
+    } catch (err) {
+      console.error('[PregnancyView] Error cargando datos clínicos:', err);
+    }
+  }, [motherId, activePregnancy.id]);
+
+  useEffect(() => {
+    const t = setTimeout(() => { loadClinicalData(); }, 0);
+    return () => clearTimeout(t);
+  }, [loadClinicalData]);
+
   // Obstetrician details
-  const obstetricianLink = (db.doctor_patient_links || []).find(lnk => 
-    lnk.mother_id === motherId && 
-    lnk.status !== 'inactive' && 
-    db.doctors.find(d => d.id === lnk.doctor_id)?.specialty === 'obstetrician'
-  );
-  const currentObstetrician = obstetricianLink && obstetricianLink.status === 'active'
-    ? db.profiles.find(p => p.id === obstetricianLink.doctor_id)
-    : null;
+  const obstetricianLink = myLinks.find(l => l.specialty === 'obstetrician' && l.status !== 'inactive');
+  const currentObstetrician = obstetricianLink && obstetricianLink.status === 'active' ? obstetricianLink : null;
 
   // Weeks gestation logic
   const lmp = new Date(activePregnancy.last_menstrual_period);
@@ -65,45 +89,55 @@ export default function PregnancyView({ activePregnancy, onGraduation, onLinkDoc
   const fruit = getFruitSize(totalWeeks);
   const trimester = totalWeeks < 14 ? 'Primer Trimestre' : totalWeeks < 28 ? 'Segundo Trimestre' : 'Tercer Trimestre';
 
-  // Datos propios de la usuaria (en blanco si aún no registra nada)
-  const myVitals = db.vital_signs.filter(v => v.mother_id === motherId || v.pregnancy_id === activePregnancy.id);
+  // En blanco si aún no registra nada
   const latestVitals = myVitals[0];
-  const mySymptoms = db.symptoms.filter(s => s.mother_id === motherId || s.pregnancy_id === activePregnancy.id);
-  const myAppointments = db.appointments.filter(a => a.mother_id === motherId);
   const nextAppointment = myAppointments[0];
   const nextApptDate = nextAppointment ? new Date(nextAppointment.appointment_date) : null;
-  const nextApptDoctor = nextAppointment ? db.profiles.find(p => p.id === nextAppointment.doctor_id) : null;
+  const nextApptDoctorName = nextAppointment
+    ? ((nextAppointment as Appointment & { doctor_name?: string }).doctor_name
+        || myLinks.find(l => l.doctor_id === nextAppointment.doctor_id)?.doctor_name
+        || 'Especialista')
+    : '';
 
-  const handleSaveSymptom = (name: string, intensity: 'Bajo' | 'Medio' | 'Alto', notes: string) => {
-    const newSymptom: Symptom = {
-      id: `sym-${Date.now()}`,
-      mother_id: motherId,
-      pregnancy_id: activePregnancy.id,
-      symptom_name: name,
-      intensity,
-      logged_date: new Date().toISOString().split('T')[0],
-      notes
-    };
-    const updatedDb = { ...db, symptoms: [newSymptom, ...db.symptoms] };
-    setDb(updatedDb);
-    saveMockDb(updatedDb);
+  const handleLink = async (code: string) => {
+    const result = await onLinkDoctor(code);
+    if (result.success) await loadClinicalData();
+    return result;
+  };
+
+  const handleRevoke = async (linkId: string) => {
+    await onRevokeLink(linkId);
+    await loadClinicalData();
+  };
+
+  const handleSaveSymptom = async (name: string, intensity: 'Bajo' | 'Medio' | 'Alto', notes: string) => {
+    try {
+      const symptom = await addSymptom(motherId, {
+        pregnancy_id: activePregnancy.id,
+        symptom_name: name,
+        intensity,
+        notes,
+      });
+      setMySymptoms(prev => [symptom, ...prev]);
+    } catch (err) {
+      console.error('[PregnancyView] Error guardando síntoma:', err);
+    }
     setSymptomOpen(false);
   };
 
-  const handleSaveVitals = (weight?: number, systolic?: number, diastolic?: number, heartRate?: number) => {
-    const newVital: VitalSign = {
-      id: `vit-${Date.now()}`,
-      mother_id: motherId,
-      logged_date: new Date().toISOString().split('T')[0],
-      weight_kg: weight,
-      systolic_bp: systolic,
-      diastolic_bp: diastolic,
-      heart_rate_bpm: heartRate,
-      temperature_c: 36.6
-    };
-    const updatedDb = { ...db, vital_signs: [newVital, ...db.vital_signs] };
-    setDb(updatedDb);
-    saveMockDb(updatedDb);
+  const handleSaveVitals = async (weight?: number, systolic?: number, diastolic?: number, heartRate?: number) => {
+    try {
+      const vital = await addVital(motherId, {
+        weight_kg: weight,
+        systolic_bp: systolic,
+        diastolic_bp: diastolic,
+        heart_rate_bpm: heartRate,
+        temperature_c: 36.6,
+      });
+      setMyVitals(prev => [vital, ...prev]);
+    } catch (err) {
+      console.error('[PregnancyView] Error guardando signos vitales:', err);
+    }
     setVitalsOpen(false);
   };
 
@@ -255,7 +289,7 @@ export default function PregnancyView({ activePregnancy, onGraduation, onLinkDoc
                 </div>
               </div>
               <p className="text-[10px] text-gray-500 font-medium border-t border-gray-100/50 pt-2">
-                {nextApptDoctor?.full_name || 'Especialista'} • {nextApptDate.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+                {nextApptDoctorName} • {nextApptDate.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
           ) : (
@@ -271,15 +305,15 @@ export default function PregnancyView({ activePregnancy, onGraduation, onLinkDoc
           {currentObstetrician ? (
             <div className="flex items-center justify-between gap-3 bg-slate-50 border border-gray-150 p-3 rounded-2xl text-xs">
               <div className="min-w-0">
-                <h4 className="font-bold text-slate-800 truncate">{currentObstetrician.full_name}</h4>
-                <p className="text-[9px] text-gray-400 font-semibold truncate">Lic: {db.doctors.find(d => d.id === currentObstetrician.id)?.license_number}</p>
+                <h4 className="font-bold text-slate-800 truncate">{currentObstetrician.doctor_name}</h4>
+                <p className="text-[9px] text-gray-400 font-semibold truncate">Lic: {currentObstetrician.license_number || '--'}</p>
               </div>
-              <button onClick={() => onRevokeLink(obstetricianLink!.id)} className="text-[9px] font-black bg-rose-50 text-rose-600 px-2 py-1 rounded-xl border border-rose-100 shrink-0 cursor-pointer">Revocar</button>
+              <button onClick={() => handleRevoke(obstetricianLink!.id)} className="text-[9px] font-black bg-rose-50 text-rose-600 px-2 py-1 rounded-xl border border-rose-100 shrink-0 cursor-pointer">Revocar</button>
             </div>
           ) : obstetricianLink && obstetricianLink.status === 'pending' ? (
             <div className="bg-slate-50 border border-gray-150 p-3 rounded-2xl text-xs flex justify-between items-center">
               <span className="text-[9px] font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">Pendiente</span>
-              <button onClick={() => onRevokeLink(obstetricianLink.id)} className="text-[9px] font-bold text-rose-500 cursor-pointer">Cancelar</button>
+              <button onClick={() => handleRevoke(obstetricianLink.id)} className="text-[9px] font-bold text-rose-500 cursor-pointer">Cancelar</button>
             </div>
           ) : (
             <button onClick={() => setLinkOpen(true)} className="w-full py-2 bg-pink-500 text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer">Vincular Médico</button>
@@ -297,7 +331,7 @@ export default function PregnancyView({ activePregnancy, onGraduation, onLinkDoc
       {/* Modals Mounting */}
       <SymptomModal isOpen={symptomOpen} onClose={() => setSymptomOpen(false)} onSave={handleSaveSymptom} />
       <VitalsModal isOpen={vitalsOpen} onClose={() => setVitalsOpen(false)} onSave={handleSaveVitals} />
-      <LinkDoctorModal isOpen={linkOpen} onClose={() => setLinkOpen(false)} onLink={onLinkDoctor} />
+      <LinkDoctorModal isOpen={linkOpen} onClose={() => setLinkOpen(false)} onLink={handleLink} />
       <BirthRegisterModal isOpen={birthOpen} onClose={() => setBirthOpen(false)} onRegister={onGraduation} />
 
       {/* Antecedentes Form Modal */}

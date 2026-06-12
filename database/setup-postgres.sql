@@ -17,6 +17,8 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 DO $$ BEGIN CREATE TYPE user_role AS ENUM ('mother', 'obstetrician', 'pediatrician', 'admin'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE link_status AS ENUM ('pending', 'accepted', 'rejected', 'revoked'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE appointment_status AS ENUM ('scheduled', 'completed', 'cancelled'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+ALTER TYPE appointment_status ADD VALUE IF NOT EXISTS 'pending';
+ALTER TYPE appointment_status ADD VALUE IF NOT EXISTS 'confirmed';
 DO $$ BEGIN CREATE TYPE pregnancy_status AS ENUM ('active', 'completed', 'terminated'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE prescription_status AS ENUM ('activa', 'expirada', 'cancelada', 'dispensada'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE saas_plan AS ENUM ('madre_basico', 'madre_premium', 'doc_basico', 'doc_pro', 'clinica', 'hospital', 'enterprise'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -100,8 +102,14 @@ CREATE TABLE IF NOT EXISTS professionals (
     num_reviews INTEGER,
     last_login TIMESTAMPTZ,
     metadata JSONB,
+    invite_code TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+-- Para instalaciones previas
+ALTER TABLE professionals ADD COLUMN IF NOT EXISTS invite_code TEXT;
+-- Generar códigos de invitación a quien no tenga
+UPDATE professionals SET invite_code = 'DR-' || UPPER(SUBSTRING(MD5(id::text), 1, 6)) WHERE invite_code IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_professionals_invite_code ON professionals (invite_code);
 
 -- ─── 4. PREGNANCIES ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS pregnancies (
@@ -143,11 +151,16 @@ CREATE TABLE IF NOT EXISTS doctor_patient_links (
     doctor_id UUID NOT NULL REFERENCES professionals(id) ON DELETE CASCADE,
     mother_id UUID NOT NULL REFERENCES mothers(id) ON DELETE CASCADE,
     baby_id UUID REFERENCES babies(id) ON DELETE CASCADE,
-    link_code VARCHAR(20) NOT NULL UNIQUE,
+    link_code VARCHAR(20),
     status link_status NOT NULL DEFAULT 'pending',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- Para instalaciones previas: el código no es único (varias madres usan el mismo)
+ALTER TABLE doctor_patient_links DROP CONSTRAINT IF EXISTS doctor_patient_links_link_code_key;
+ALTER TABLE doctor_patient_links ALTER COLUMN link_code DROP NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_links_doctor ON doctor_patient_links (doctor_id);
+CREATE INDEX IF NOT EXISTS idx_links_mother ON doctor_patient_links (mother_id);
 
 -- ─── 7. APPOINTMENTS ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS appointments (

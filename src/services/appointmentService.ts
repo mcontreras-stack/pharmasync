@@ -365,3 +365,131 @@ export async function recordPediatricVisit(
     throw err;
   }
 }
+
+// =============================================================================
+// API unificada de citas (demo / Supabase / PostgreSQL) usada por la UI
+// =============================================================================
+
+import { getDataBackend, apiJson } from '@/lib/backend';
+import { getMockDb, saveMockDb } from '@/lib/mockDb';
+import type { Appointment as AppAppointment, AppointmentState } from '@/types/appointments';
+import type { Profile } from '@/types/core';
+
+/** Citas del usuario (madre: las suyas; médico: su agenda). */
+export async function getAppointmentsFor(user: { id: string; role: string }): Promise<AppAppointment[]> {
+  const backend = getDataBackend();
+  const field = user.role === 'mother' ? 'mother_id' : 'doctor_id';
+
+  if (backend === 'demo') {
+    return getMockDb().appointments
+      .filter(a => a[field] === user.id)
+      .sort((a, b) => new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime());
+  }
+
+  if (backend === 'postgres') {
+    const { appointments } = await apiJson<{ appointments: AppAppointment[] }>('/api/appointments');
+    return appointments;
+  }
+
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('*')
+    .eq(field, user.id)
+    .order('appointment_date', { ascending: true });
+  if (error) throw error;
+  return (data || []) as AppAppointment[];
+}
+
+/** Programar una cita (madre). */
+export async function bookAppointment(
+  motherId: string,
+  input: { doctor_id: string; appointment_date: string; reason: string; notes?: string; baby_id?: string }
+): Promise<AppAppointment> {
+  const backend = getDataBackend();
+
+  if (backend === 'demo') {
+    const db = getMockDb();
+    const appt: AppAppointment = {
+      id: `appt-${Date.now()}`,
+      doctor_id: input.doctor_id,
+      mother_id: motherId,
+      baby_id: input.baby_id,
+      appointment_date: input.appointment_date,
+      status: 'pending',
+      reason: input.reason,
+      notes: input.notes,
+    };
+    db.appointments = [...db.appointments, appt];
+    saveMockDb(db);
+    return appt;
+  }
+
+  if (backend === 'postgres') {
+    const { appointment } = await apiJson<{ appointment: AppAppointment }>('/api/appointments', {
+      method: 'POST',
+      body: JSON.stringify({ mother_id: motherId, ...input }),
+    });
+    return appointment;
+  }
+
+  await supabase.from('mothers').upsert({ id: motherId });
+  const { data, error } = await supabase
+    .from('appointments')
+    .insert({
+      doctor_id: input.doctor_id,
+      mother_id: motherId,
+      baby_id: input.baby_id || null,
+      appointment_date: input.appointment_date,
+      status: 'pending',
+      reason: input.reason,
+      notes: input.notes || null,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as AppAppointment;
+}
+
+/** Cambiar el estado de una cita (confirmar, cancelar, completar...). */
+export async function setAppointmentStatus(id: string, status: AppointmentState): Promise<void> {
+  const backend = getDataBackend();
+
+  if (backend === 'demo') {
+    const db = getMockDb();
+    db.appointments = db.appointments.map(a => a.id === id ? { ...a, status } : a);
+    saveMockDb(db);
+    return;
+  }
+
+  if (backend === 'postgres') {
+    await apiJson('/api/appointments', { method: 'PATCH', body: JSON.stringify({ id, status }) });
+    return;
+  }
+
+  const { error } = await supabase.from('appointments').update({ status }).eq('id', id);
+  if (error) throw error;
+}
+
+/**
+ * Médicos a los que la madre puede agendar cita.
+ * Demo: todos los médicos demo. Real: sus médicos vinculados (links activos).
+ */
+export async function getBookableDoctors(motherId: string): Promise<Profile[]> {
+  const backend = getDataBackend();
+
+  if (backend === 'demo') {
+    return getMockDb().profiles.filter(p => p.role === 'obstetrician' || p.role === 'pediatrician');
+  }
+
+  const { getLinksForMother } = await import('./linkService');
+  const links = await getLinksForMother(motherId);
+  return links
+    .filter(l => l.status === 'active')
+    .map(l => ({
+      id: l.doctor_id,
+      email: '',
+      full_name: l.doctor_name || 'Especialista',
+      role: (l.specialty || 'obstetrician') as Profile['role'],
+      status: 'approved' as const,
+    }));
+}

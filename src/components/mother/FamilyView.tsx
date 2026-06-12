@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
-import { 
+import React, { useState, useEffect, useCallback } from 'react';
+import {
   Baby, CheckCircle, Smile, Shield, TrendingUp, ChevronDown, ChevronUp, Edit3, HeartPulse
 } from 'lucide-react';
 import { getMockDb, saveMockDb, Baby as BabyType, BabyVaccine, DevelopmentMilestone } from '@/lib/mockDb';
+import { getLinksForMother, PatientLink } from '@/services/linkService';
 import LinkDoctorModal from './LinkDoctorModal';
 import NewbornRecordViewer from '../neonatal/NewbornRecordViewer';
 import NewbornRecordForm from '../neonatal/NewbornRecordForm';
@@ -19,7 +20,7 @@ interface FamilyViewProps {
 
 export default function FamilyView({ babies, selectedBabyId, onSelectBaby, onLinkDoctor, onRevokeLink }: FamilyViewProps) {
   const [db, setDb] = useState(getMockDb());
-  
+
   // Selection
   const selectedBaby = babies.find(b => b.id === selectedBabyId) || babies[0];
 
@@ -28,17 +29,40 @@ export default function FamilyView({ babies, selectedBabyId, onSelectBaby, onLin
   const [neonatalOpen, setNeonatalOpen] = useState(false);
   const [neonatalEditOpen, setNeonatalEditOpen] = useState(false);
 
+  // Vínculo con pediatra (demo, Supabase o PostgreSQL)
+  const [myLinks, setMyLinks] = useState<PatientLink[]>([]);
+  const motherId = selectedBaby?.mother_id || '';
+
+  const loadLinks = useCallback(async () => {
+    if (!motherId) return;
+    try {
+      setMyLinks(await getLinksForMother(motherId));
+    } catch (err) {
+      console.error('[FamilyView] Error cargando vínculos:', err);
+    }
+  }, [motherId]);
+
+  useEffect(() => {
+    const t = setTimeout(() => { loadLinks(); }, 0);
+    return () => clearTimeout(t);
+  }, [loadLinks]);
+
   if (!selectedBaby) return null;
 
   // Pediatrician details
-  const pediatricianLink = (db.doctor_patient_links || []).find(lnk =>
-    lnk.mother_id === selectedBaby.mother_id &&
-    lnk.status !== 'inactive' && 
-    db.doctors.find(d => d.id === lnk.doctor_id)?.specialty === 'pediatrician'
-  );
-  const currentPediatrician = pediatricianLink && pediatricianLink.status === 'active'
-    ? db.profiles.find(p => p.id === pediatricianLink.doctor_id)
-    : null;
+  const pediatricianLink = myLinks.find(l => l.specialty === 'pediatrician' && l.status !== 'inactive');
+  const currentPediatrician = pediatricianLink && pediatricianLink.status === 'active' ? pediatricianLink : null;
+
+  const handleLink = async (code: string) => {
+    const result = await onLinkDoctor(code);
+    if (result.success) await loadLinks();
+    return result;
+  };
+
+  const handleRevoke = async (linkId: string) => {
+    await onRevokeLink(linkId);
+    await loadLinks();
+  };
 
   const handleToggleVaccine = (vaccineId: string) => {
     const updated = db.baby_vaccines.map(bv => {
@@ -225,15 +249,15 @@ export default function FamilyView({ babies, selectedBabyId, onSelectBaby, onLin
           {currentPediatrician ? (
             <div className="flex items-center justify-between gap-3 bg-slate-50 border border-gray-150 p-3 rounded-2xl text-xs">
               <div className="min-w-0">
-                <h4 className="font-bold text-slate-800 truncate">{currentPediatrician.full_name}</h4>
-                <p className="text-[9px] text-gray-400 font-semibold truncate">Lic: {db.doctors.find(d => d.id === currentPediatrician.id)?.license_number}</p>
+                <h4 className="font-bold text-slate-800 truncate">{currentPediatrician.doctor_name}</h4>
+                <p className="text-[9px] text-gray-400 font-semibold truncate">Lic: {currentPediatrician.license_number || '--'}</p>
               </div>
-              <button onClick={() => onRevokeLink(pediatricianLink!.id)} className="text-[9px] font-black bg-rose-50 text-rose-600 px-2 py-1 rounded-xl border border-rose-100 shrink-0 cursor-pointer">Revocar</button>
+              <button onClick={() => handleRevoke(pediatricianLink!.id)} className="text-[9px] font-black bg-rose-50 text-rose-600 px-2 py-1 rounded-xl border border-rose-100 shrink-0 cursor-pointer">Revocar</button>
             </div>
           ) : pediatricianLink && pediatricianLink.status === 'pending' ? (
             <div className="bg-slate-50 border border-gray-150 p-3 rounded-2xl text-xs flex justify-between items-center">
               <span className="text-[9px] font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">Pendiente</span>
-              <button onClick={() => onRevokeLink(pediatricianLink.id)} className="text-[9px] font-bold text-rose-500 cursor-pointer">Cancelar</button>
+              <button onClick={() => handleRevoke(pediatricianLink.id)} className="text-[9px] font-bold text-rose-500 cursor-pointer">Cancelar</button>
             </div>
           ) : (
             <button onClick={() => setLinkOpen(true)} className="w-full py-2 bg-pink-500 text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer">Vincular Pediatra</button>
@@ -258,7 +282,7 @@ export default function FamilyView({ babies, selectedBabyId, onSelectBaby, onLin
         </div>
       </div>
 
-      <LinkDoctorModal isOpen={linkOpen} onClose={() => setLinkOpen(false)} onLink={onLinkDoctor} />
+      <LinkDoctorModal isOpen={linkOpen} onClose={() => setLinkOpen(false)} onLink={handleLink} />
 
       {/* Ficha Neonatal Form Modal */}
       {neonatalEditOpen && (

@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { getDataBackend, apiJson } from '@/lib/backend';
 import { getMockDb, saveMockDb } from '@/lib/mockDb';
 import type { Mother, Pregnancy, Baby } from '@/types/core';
-import type { BabyVaccine, DevelopmentMilestone } from '@/types/database';
+import type { BabyVaccine, DevelopmentMilestone, Symptom, VitalSign } from '@/types/database';
 
 export interface NewBirthInput {
   name: string;
@@ -224,5 +224,137 @@ export async function registerBirth(motherId: string, input: NewBirthInput): Pro
   if (input.pregnancy_id) {
     await supabase.from('pregnancies').update({ status: 'completed' }).eq('id', input.pregnancy_id);
   }
+  return data;
+}
+
+// ─── Síntomas ────────────────────────────────────────────────────────────────
+
+export async function getSymptoms(motherId: string, pregnancyId?: string): Promise<Symptom[]> {
+  const backend = getDataBackend();
+
+  if (backend === 'demo') {
+    return getMockDb().symptoms.filter(s => s.mother_id === motherId || (pregnancyId && s.pregnancy_id === pregnancyId));
+  }
+
+  if (backend === 'postgres') {
+    const { symptoms } = await apiJson<{ symptoms: Symptom[] }>(`/api/symptoms?motherId=${motherId}`);
+    return symptoms;
+  }
+
+  const { data, error } = await supabase
+    .from('symptoms')
+    .select('*')
+    .eq('mother_id', motherId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function addSymptom(
+  motherId: string,
+  input: { pregnancy_id?: string | null; symptom_name: string; intensity: 'Bajo' | 'Medio' | 'Alto'; notes?: string }
+): Promise<Symptom> {
+  const backend = getDataBackend();
+  const today = new Date().toISOString().split('T')[0];
+
+  if (backend === 'demo') {
+    const db = getMockDb();
+    const symptom: Symptom = {
+      id: `sym-${Date.now()}`,
+      mother_id: motherId,
+      pregnancy_id: input.pregnancy_id || '',
+      symptom_name: input.symptom_name,
+      intensity: input.intensity,
+      logged_date: today,
+      notes: input.notes,
+    };
+    db.symptoms = [symptom, ...db.symptoms];
+    saveMockDb(db);
+    return symptom;
+  }
+
+  if (backend === 'postgres') {
+    const { symptom } = await apiJson<{ symptom: Symptom }>('/api/symptoms', {
+      method: 'POST',
+      body: JSON.stringify({ mother_id: motherId, ...input }),
+    });
+    return symptom;
+  }
+
+  await supabase.from('mothers').upsert({ id: motherId });
+  const { data, error } = await supabase
+    .from('symptoms')
+    .insert({
+      mother_id: motherId,
+      pregnancy_id: input.pregnancy_id || null,
+      symptom_name: input.symptom_name,
+      intensity: input.intensity,
+      notes: input.notes || null,
+      logged_date: today,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// ─── Signos vitales ──────────────────────────────────────────────────────────
+
+export async function getVitals(motherId: string, pregnancyId?: string): Promise<VitalSign[]> {
+  const backend = getDataBackend();
+
+  if (backend === 'demo') {
+    return getMockDb().vital_signs.filter(v => v.mother_id === motherId || (pregnancyId && v.pregnancy_id === pregnancyId));
+  }
+
+  if (backend === 'postgres') {
+    const { vitals } = await apiJson<{ vitals: VitalSign[] }>(`/api/vitals?motherId=${motherId}`);
+    return vitals;
+  }
+
+  const { data, error } = await supabase
+    .from('vital_signs')
+    .select('*')
+    .eq('mother_id', motherId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function addVital(
+  motherId: string,
+  input: { weight_kg?: number; systolic_bp?: number; diastolic_bp?: number; heart_rate_bpm?: number; temperature_c?: number }
+): Promise<VitalSign> {
+  const backend = getDataBackend();
+  const today = new Date().toISOString().split('T')[0];
+
+  if (backend === 'demo') {
+    const db = getMockDb();
+    const vital: VitalSign = {
+      id: `vit-${Date.now()}`,
+      mother_id: motherId,
+      logged_date: today,
+      ...input,
+    };
+    db.vital_signs = [vital, ...db.vital_signs];
+    saveMockDb(db);
+    return vital;
+  }
+
+  if (backend === 'postgres') {
+    const { vital } = await apiJson<{ vital: VitalSign }>('/api/vitals', {
+      method: 'POST',
+      body: JSON.stringify({ mother_id: motherId, ...input }),
+    });
+    return vital;
+  }
+
+  await supabase.from('mothers').upsert({ id: motherId });
+  const { data, error } = await supabase
+    .from('vital_signs')
+    .insert({ mother_id: motherId, logged_date: today, ...input })
+    .select()
+    .single();
+  if (error) throw error;
   return data;
 }

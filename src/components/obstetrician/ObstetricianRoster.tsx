@@ -19,6 +19,8 @@ interface PatientProfileType {
 interface PendingLinkType {
   id: string;
   mother_id: string;
+  mother_name?: string;
+  mother_email?: string;
 }
 
 interface ObstetricianRosterProps {
@@ -60,12 +62,13 @@ export default function ObstetricianRoster({
           <div className="space-y-2 max-h-36 overflow-y-auto">
             {pendingLinks.map(lnk => {
               const momProfile = db.profiles.find(p => p.id === lnk.mother_id);
-              if (!momProfile) return null;
+              const momName = lnk.mother_name || momProfile?.full_name || 'Paciente';
+              const momEmail = lnk.mother_email || momProfile?.email || '';
               return (
                 <div key={lnk.id} className="bg-white border border-gray-150 p-2.5 rounded-xl flex items-center justify-between gap-1.5">
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-gray-700 truncate" title={momProfile.full_name}>{momProfile.full_name}</p>
-                    <p className="text-[8px] text-gray-450 font-semibold truncate">{momProfile.email}</p>
+                    <p className="text-[10px] font-bold text-gray-700 truncate" title={momName}>{momName}</p>
+                    <p className="text-[8px] text-gray-450 font-semibold truncate">{momEmail}</p>
                   </div>
                   <div className="flex gap-1 shrink-0">
                     <button

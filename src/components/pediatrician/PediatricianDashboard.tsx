@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getMockDb, saveMockDb, PediatricVisit, GrowthRecord, MOCK_PEDIATRICIAN_ID, Doctor } from '@/lib/mockDb';
 import { Lock, BrainCircuit } from 'lucide-react';
@@ -8,18 +8,46 @@ import PediatricianRoster from './PediatricianRoster';
 import PediatricianPatientFile from './PediatricianPatientFile';
 import PediatricianVisitModal from './PediatricianVisitModal';
 import AiChatWidget from '../ai/AiChatWidget';
+import { getPediatricPatients, getPendingLinksForDoctor, setLinkStatus, getMyProfessional, PediatricPatient, PatientLink } from '@/services/linkService';
 
 export default function PediatricianDashboard() {
   const { user } = useAuth();
   const [db, setDb] = useState(getMockDb());
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedBabyId, setSelectedBabyId] = useState<string>('baby-mateo-999');
+  const [selectedBabyId, setSelectedBabyId] = useState<string>('');
   const [visitModalOpen, setVisitModalOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
 
-  if (!user) return null;
+  // Datos del backend activo (demo, Supabase o PostgreSQL)
+  const [myPatients, setMyPatients] = useState<PediatricPatient[]>([]);
+  const [pendingLinks, setPendingLinks] = useState<PatientLink[]>([]);
+  const [doctor, setDoctor] = useState<Partial<Doctor>>({});
 
-  const doctor = (db.doctors.find(d => d.id === user.id) || { exequatur: '', cmd_number: '' }) as Doctor;
+  const doctorId = user?.id || '';
+
+  const loadData = useCallback(async () => {
+    if (!doctorId) return;
+    try {
+      const [roster, pending, prof] = await Promise.all([
+        getPediatricPatients(doctorId),
+        getPendingLinksForDoctor(doctorId),
+        getMyProfessional(doctorId, ''),
+      ]);
+      setMyPatients(roster);
+      setPendingLinks(pending);
+      setDoctor(prof);
+      setSelectedBabyId(prev => prev || roster[0]?.baby.id || '');
+    } catch (err) {
+      console.error('[PediatricianDashboard] Error cargando datos:', err);
+    }
+  }, [doctorId]);
+
+  useEffect(() => {
+    const t = setTimeout(() => { loadData(); }, 0);
+    return () => clearTimeout(t);
+  }, [loadData]);
+
+  if (!user) return null;
 
   // Verification blocker overlay if doctor is not approved
   if (user.status !== 'approved' && user.id !== MOCK_PEDIATRICIAN_ID) {
@@ -43,13 +71,10 @@ export default function PediatricianDashboard() {
     );
   }
 
-  const pendingLinks = (db.doctor_patient_links || []).filter(lnk => lnk.doctor_id === user.id && lnk.status === 'pending');
-  const connectedBabies = db.babies.filter(b => b.pediatrician_id === user.id);
-
-  const babyProfiles = connectedBabies.map(b => {
-    const motherProfile = db.profiles.find(p => p.id === b.mother_id);
-    return { baby: b, motherProfile };
-  }).filter(p => {
+  const babyProfiles = myPatients.map(p => ({
+    baby: p.baby,
+    motherProfile: { full_name: p.mother_name },
+  })).filter(p => {
     if (!searchQuery) return true;
     return p.baby.name.toLowerCase().includes(searchQuery.toLowerCase());
   });
@@ -64,21 +89,13 @@ export default function PediatricianDashboard() {
     ageMonths = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 30.4));
   }
 
-  const handleLinkAction = (linkId: string, action: 'approve' | 'reject') => {
-    const link = db.doctor_patient_links.find(l => l.id === linkId);
-    if (!link) return;
-
-    const nextStatus = action === 'approve' ? 'active' as const : 'inactive' as const;
-    const updatedLinks = db.doctor_patient_links.map(l => l.id === linkId ? { ...l, status: nextStatus } : l);
-
-    let updatedBabies = db.babies;
-    if (action === 'approve') {
-      updatedBabies = db.babies.map(b => b.mother_id === link.mother_id ? { ...b, pediatrician_id: user.id } : b);
+  const handleLinkAction = async (linkId: string, action: 'approve' | 'reject') => {
+    try {
+      await setLinkStatus(linkId, action);
+      await loadData();
+    } catch (err) {
+      console.error('[PediatricianDashboard] Error gestionando vínculo:', err);
     }
-
-    const updatedDb = { ...db, doctor_patient_links: updatedLinks, babies: updatedBabies };
-    setDb(updatedDb);
-    saveMockDb(updatedDb);
   };
 
   const handleSaveVisit = (weight: number, height: number, headCirc?: number, devStatus?: string, notes?: string, recommendations?: string) => {

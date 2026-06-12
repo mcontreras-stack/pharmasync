@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useTab } from '@/context/TabContext';
-import { getMockDb, saveMockDb, Baby, Pregnancy, Mother } from '@/lib/mockDb';
+import { Baby, Pregnancy, Mother } from '@/lib/mockDb';
 import { Heart, Baby as BabyIcon, BrainCircuit, CalendarHeart, ClipboardList, Loader2 } from 'lucide-react';
 import PregnancyView from './PregnancyView';
 import FamilyView from './FamilyView';
@@ -11,6 +11,7 @@ import AiChatWidget from '../ai/AiChatWidget';
 import PregnancySetupModal from './PregnancySetupModal';
 import BirthRegisterModal from './BirthRegisterModal';
 import { getActivePregnancy, getBabies, getMotherRecord, createPregnancy, registerBirth } from '@/services/motherService';
+import { requestLink, setLinkStatus } from '@/services/linkService';
 
 export default function MotherDashboard() {
   const { user } = useAuth();
@@ -80,54 +81,18 @@ export default function MotherDashboard() {
   };
 
   const handleLinkDoctor = async (code: string): Promise<{ success: boolean; message: string }> => {
-    const db = getMockDb();
-    const cleanCode = code.toUpperCase().trim();
-    const targetDoc = db.doctors.find(d =>
-      (d.invite_code && d.invite_code.toUpperCase() === cleanCode) ||
-      (d.id === 'doctor-ana-456' && cleanCode === 'OB-ANA-28') ||
-      (d.id === 'doctor-andres-789' && cleanCode === 'PE-AND-04')
-    );
-
-    if (!targetDoc) {
-      return { success: false, message: 'Código de invitación no encontrado.' };
-    }
-
-    const exists = (db.doctor_patient_links || []).some(lnk =>
-      lnk.doctor_id === targetDoc.id && lnk.mother_id === motherId && lnk.status !== 'inactive'
-    );
-
-    if (exists) {
-      return { success: false, message: 'Ya tienes una vinculación activa con este especialista.' };
-    }
-
-    db.doctor_patient_links = [...(db.doctor_patient_links || []), {
-      id: `lnk-${Date.now()}`,
-      doctor_id: targetDoc.id,
-      mother_id: motherId,
-      link_code: cleanCode,
-      status: 'pending' as const
-    }];
-    saveMockDb(db);
-    return { success: true, message: 'Vínculo solicitado correctamente. Pendiente de aprobación.' };
+    const result = await requestLink(motherId, code);
+    if (result.success) await loadData();
+    return result;
   };
 
-  const handleRevokeLink = (linkId: string) => {
-    const db = getMockDb();
-    const link = db.doctor_patient_links.find(l => l.id === linkId);
-    db.doctor_patient_links = db.doctor_patient_links.map(l =>
-      l.id === linkId ? { ...l, status: 'inactive' as const } : l
-    );
-
-    if (link) {
-      const doc = db.doctors.find(d => d.id === link.doctor_id);
-      if (doc?.specialty === 'obstetrician') {
-        db.pregnancies = db.pregnancies.map(p => p.mother_id === motherId && p.obstetrician_id === link.doctor_id ? { ...p, obstetrician_id: null } : p);
-      } else {
-        db.babies = db.babies.map(b => b.mother_id === motherId && b.pediatrician_id === link.doctor_id ? { ...b, pediatrician_id: null } : b);
-      }
+  const handleRevokeLink = async (linkId: string) => {
+    try {
+      await setLinkStatus(linkId, 'revoke');
+      await loadData();
+    } catch (err) {
+      console.error('[MotherDashboard] Error revocando vínculo:', err);
     }
-    saveMockDb(db);
-    loadData();
   };
 
   const handleRegisterBirth = async (name: string, date: string, gender: string, weight?: number, height?: number) => {

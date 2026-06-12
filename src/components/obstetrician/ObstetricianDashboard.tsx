@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getMockDb, saveMockDb, PrenatalVisit, MOCK_OBSTETRICIAN_ID, Doctor } from '@/lib/mockDb';
 import { Lock, BrainCircuit } from 'lucide-react';
@@ -8,18 +8,45 @@ import ObstetricianRoster from './ObstetricianRoster';
 import ObstetricianPatientFile from './ObstetricianPatientFile';
 import ObstetricianVisitModal from './ObstetricianVisitModal';
 import AiChatWidget from '../ai/AiChatWidget';
+import { getObstetricPatients, getPendingLinksForDoctor, setLinkStatus, getMyProfessional, ObstetricPatient, PatientLink } from '@/services/linkService';
 
 export default function ObstetricianDashboard() {
   const { user } = useAuth();
-  const [db, setDb] = useState(getMockDb());
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedMotherId, setSelectedMotherId] = useState<string>('mother-maria-123');
+  const [selectedMotherId, setSelectedMotherId] = useState<string>('');
   const [visitModalOpen, setVisitModalOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
 
-  if (!user) return null;
+  // Datos del backend activo (demo, Supabase o PostgreSQL)
+  const [patients, setPatients] = useState<ObstetricPatient[]>([]);
+  const [pendingLinks, setPendingLinks] = useState<PatientLink[]>([]);
+  const [doctor, setDoctor] = useState<Partial<Doctor>>({});
 
-  const doctor = (db.doctors.find(d => d.id === user.id) || { exequatur: '', cmd_number: '' }) as Doctor;
+  const doctorId = user?.id || '';
+
+  const loadData = useCallback(async () => {
+    if (!doctorId) return;
+    try {
+      const [roster, pending, prof] = await Promise.all([
+        getObstetricPatients(doctorId),
+        getPendingLinksForDoctor(doctorId),
+        getMyProfessional(doctorId, ''),
+      ]);
+      setPatients(roster);
+      setPendingLinks(pending);
+      setDoctor(prof);
+      setSelectedMotherId(prev => prev || roster[0]?.motherId || '');
+    } catch (err) {
+      console.error('[ObstetricianDashboard] Error cargando datos:', err);
+    }
+  }, [doctorId]);
+
+  useEffect(() => {
+    const t = setTimeout(() => { loadData(); }, 0);
+    return () => clearTimeout(t);
+  }, [loadData]);
+
+  if (!user) return null;
 
   // Verification blocker overlay if doctor is not approved
   if (user.status !== 'approved' && user.id !== MOCK_OBSTETRICIAN_ID) {
@@ -43,16 +70,13 @@ export default function ObstetricianDashboard() {
     );
   }
 
-  const pendingLinks = (db.doctor_patient_links || []).filter(lnk => lnk.doctor_id === user.id && lnk.status === 'pending');
-  const connectedMothers = db.mothers.filter(m => db.pregnancies.some(p => p.mother_id === m.id && p.obstetrician_id === user.id));
-
-  const patientProfiles = connectedMothers.map(m => {
-    const profile = db.profiles.find(p => p.id === m.id);
-    const pregnancy = db.pregnancies.find(p => p.mother_id === m.id && p.status === 'active');
-    return { mother: m, profile, pregnancy };
-  }).filter(p => {
+  const patientProfiles = patients.map(p => ({
+    mother: p.mother || { id: p.motherId, phone: '', birth_date: '', emergency_contact_name: '', emergency_contact_phone: '', blood_type: '' },
+    profile: { full_name: p.full_name },
+    pregnancy: p.pregnancy,
+  })).filter(p => {
     if (!searchQuery) return true;
-    return p.profile?.full_name.toLowerCase().includes(searchQuery.toLowerCase());
+    return p.profile.full_name.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   const selectedPatient = patientProfiles.find(p => p.mother.id === selectedMotherId) || patientProfiles[0];
@@ -64,21 +88,13 @@ export default function ObstetricianDashboard() {
     pregnancyWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
   }
 
-  const handleLinkAction = (linkId: string, action: 'approve' | 'reject') => {
-    const link = db.doctor_patient_links.find(l => l.id === linkId);
-    if (!link) return;
-
-    const nextStatus = action === 'approve' ? 'active' as const : 'inactive' as const;
-    const updatedLinks = db.doctor_patient_links.map(l => l.id === linkId ? { ...l, status: nextStatus } : l);
-
-    let updatedPregnancies = db.pregnancies;
-    if (action === 'approve') {
-      updatedPregnancies = db.pregnancies.map(p => p.mother_id === link.mother_id && p.status === 'active' ? { ...p, obstetrician_id: user.id } : p);
+  const handleLinkAction = async (linkId: string, action: 'approve' | 'reject') => {
+    try {
+      await setLinkStatus(linkId, action);
+      await loadData();
+    } catch (err) {
+      console.error('[ObstetricianDashboard] Error gestionando vínculo:', err);
     }
-
-    const updatedDb = { ...db, doctor_patient_links: updatedLinks, pregnancies: updatedPregnancies };
-    setDb(updatedDb);
-    saveMockDb(updatedDb);
   };
 
   const handleSaveVisit = (week: number, weight?: number, bp?: string, heartRate?: number, notes?: string, recommendations?: string) => {
@@ -96,10 +112,11 @@ export default function ObstetricianDashboard() {
       recommendations
     };
 
-    const updatedAppointments = db.appointments.map(a => a.mother_id === selectedPatient.mother.id && a.doctor_id === user.id && a.status === 'scheduled' ? { ...a, status: 'completed' as const } : a);
-    const updatedDb = { ...db, prenatal_visits: [newVisit, ...db.prenatal_visits], appointments: updatedAppointments };
-    setDb(updatedDb);
-    saveMockDb(updatedDb);
+    // Las visitas prenatales se registran en la base demo (módulo pendiente de migrar)
+    const db = getMockDb();
+    db.appointments = db.appointments.map(a => a.mother_id === selectedPatient.mother.id && a.doctor_id === user.id && a.status === 'scheduled' ? { ...a, status: 'completed' as const } : a);
+    db.prenatal_visits = [newVisit, ...db.prenatal_visits];
+    saveMockDb(db);
     setVisitModalOpen(false);
   };
 

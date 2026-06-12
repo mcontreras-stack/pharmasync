@@ -33,9 +33,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isMockMode, setIsMockMode] = useState(() => {
     if (typeof window !== 'undefined') {
       const forcedMock = localStorage.getItem('vitarahealth_force_mock_mode') === 'true';
-      const storedUser = localStorage.getItem('vitarahealth_user');
-      const isUserMock = storedUser ? JSON.parse(storedUser).email?.toLowerCase().endsWith('@vitarahealth.com') : false;
-      
+      let isUserMock = false;
+      try {
+        const storedUser = localStorage.getItem('vitarahealth_user');
+        isUserMock = storedUser ? JSON.parse(storedUser).email?.toLowerCase().endsWith('@vitarahealth.com') : false;
+      } catch {
+        // localStorage corrupto: descartar la sesión guardada
+        localStorage.removeItem('vitarahealth_user');
+      }
+
       return forcedMock || isUserMock || getDataBackend() === 'demo';
     }
     return false;
@@ -63,8 +69,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const storedSubRole = localStorage.getItem('vitarahealth_admin_subrole') as AdminSubRole;
         if (storedSubRole) setAdminSubRoleState(storedSubRole);
 
+        let parsedUser: Profile | null = null;
         if (storedMockUser) {
-          const parsedUser = JSON.parse(storedMockUser) as Profile;
+          try {
+            parsedUser = JSON.parse(storedMockUser) as Profile;
+          } catch {
+            localStorage.removeItem('vitarahealth_user');
+          }
+        }
+
+        if (parsedUser) {
 
           // ── Usuario Mock (demo)
           if (parsedUser.email.toLowerCase().endsWith('@vitarahealth.com') || getDataBackend() === 'demo') {

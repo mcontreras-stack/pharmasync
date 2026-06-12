@@ -743,3 +743,46 @@ CREATE POLICY "Linked doctors can view mother data" ON public.mothers FOR SELECT
     WHERE l.mother_id = mothers.id AND l.doctor_id = auth.uid() AND l.status = 'accepted'
   )
 );
+
+-- =============================================================================
+-- COMPLEMENTOS v2: vinculación madre-médico, síntomas/vitales y citas
+-- =============================================================================
+
+-- Código de invitación de los profesionales
+ALTER TABLE public.professionals ADD COLUMN IF NOT EXISTS invite_code TEXT;
+UPDATE public.professionals SET invite_code = 'DR-' || UPPER(SUBSTRING(MD5(id::text), 1, 6)) WHERE invite_code IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_professionals_invite_code ON public.professionals (invite_code);
+
+-- El código de vínculo no es único (varias madres usan el código del mismo médico)
+ALTER TABLE public.doctor_patient_links DROP CONSTRAINT IF EXISTS doctor_patient_links_link_code_key;
+ALTER TABLE public.doctor_patient_links ALTER COLUMN link_code DROP NOT NULL;
+
+-- Estados de cita que usa la aplicación
+ALTER TYPE public.appointment_status ADD VALUE IF NOT EXISTS 'pending';
+ALTER TYPE public.appointment_status ADD VALUE IF NOT EXISTS 'confirmed';
+
+-- Los médicos vinculados pueden ver y gestionar los embarazos de sus pacientes
+DROP POLICY IF EXISTS "Linked obstetricians can view pregnancies" ON public.pregnancies;
+CREATE POLICY "Linked obstetricians can view pregnancies" ON public.pregnancies FOR SELECT USING (obstetrician_id = auth.uid());
+
+DROP POLICY IF EXISTS "Doctors can claim pregnancies via accepted link" ON public.pregnancies;
+CREATE POLICY "Doctors can claim pregnancies via accepted link" ON public.pregnancies FOR UPDATE USING (
+  obstetrician_id = auth.uid() OR EXISTS (
+    SELECT 1 FROM public.doctor_patient_links l
+    WHERE l.mother_id = pregnancies.mother_id AND l.doctor_id = auth.uid() AND l.status IN ('pending', 'accepted')
+  )
+);
+
+-- Los pediatras vinculados pueden ver y gestionar los bebés de sus pacientes
+DROP POLICY IF EXISTS "Linked pediatricians can view babies" ON public.babies;
+CREATE POLICY "Linked pediatricians can view babies" ON public.babies FOR SELECT USING (pediatrician_id = auth.uid());
+
+DROP POLICY IF EXISTS "Pediatricians can claim babies via accepted link" ON public.babies;
+CREATE POLICY "Pediatricians can claim babies via accepted link" ON public.babies FOR UPDATE USING (
+  pediatrician_id = auth.uid() OR EXISTS (
+    SELECT 1 FROM public.doctor_patient_links l
+    WHERE l.mother_id = babies.mother_id AND l.doctor_id = auth.uid() AND l.status IN ('pending', 'accepted')
+  )
+);
+
+-- Los médicos pueden ver los perfiles base de sus pacientes (profiles ya es legible por todos)

@@ -1,99 +1,103 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getMockDb, saveMockDb, Appointment } from '@/lib/mockDb';
+import { Appointment, Profile } from '@/lib/mockDb';
 import { logDataChange } from '@/services/auditService';
+import { getAppointmentsFor, bookAppointment, setAppointmentStatus, getBookableDoctors } from '@/services/appointmentService';
 import { Plus } from 'lucide-react';
 import AppointmentsCalendar from '../appointments/AppointmentsCalendar';
 import BookAppointmentModal from '../appointments/BookAppointmentModal';
 
 export default function AppointmentsTab() {
   const { user } = useAuth();
-  const [db, setDb] = useState(getMockDb());
   const [showAddModal, setShowAddModal] = useState(false);
+  const [appointmentsList, setAppointmentsList] = useState<Appointment[]>([]);
+  const [doctorsList, setDoctorsList] = useState<Profile[]>([]);
+
+  const userId = user?.id || '';
+  const userRole = user?.role || '';
+
+  const loadData = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const [appointments, doctors] = await Promise.all([
+        getAppointmentsFor({ id: userId, role: userRole }),
+        userRole === 'mother' ? getBookableDoctors(userId) : Promise.resolve([]),
+      ]);
+      setAppointmentsList(appointments);
+      setDoctorsList(doctors);
+    } catch (err) {
+      console.error('[AppointmentsTab] Error cargando citas:', err);
+    }
+  }, [userId, userRole]);
+
+  useEffect(() => {
+    const t = setTimeout(() => { loadData(); }, 0);
+    return () => clearTimeout(t);
+  }, [loadData]);
 
   if (!user) return null;
 
   const isMother = user.role === 'mother';
 
-  // Filter appointments for this user
-  const appointmentsList = db.appointments.filter(a => {
-    if (isMother) return a.mother_id === user.id;
-    return a.doctor_id === user.id;
-  }).sort((a, b) => new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime());
-
-  const doctorsList = db.profiles.filter(p => p.role === 'obstetrician' || p.role === 'pediatrician');
-
-  const handleCancelAppointment = (id: string) => {
-    const previous = db.appointments.find(a => a.id === id);
-    const updated = db.appointments.map(a => 
-      a.id === id ? { ...a, status: 'cancelled' as const } : a
-    );
-
-    const updatedDb = { ...db, appointments: updated };
-    setDb(updatedDb);
-    saveMockDb(updatedDb);
-
-    logDataChange({
-      userId: user.id,
-      userEmail: user.email,
-      userRole: user.role,
-      action: 'cancel_appointment',
-      tableAffected: 'appointments',
-      recordId: id,
-      oldValue: previous,
-      newValue: { ...previous, status: 'cancelled' }
-    });
+  const handleCancelAppointment = async (id: string) => {
+    try {
+      await setAppointmentStatus(id, 'cancelled');
+      setAppointmentsList(prev => prev.map(a => a.id === id ? { ...a, status: 'cancelled' as const } : a));
+      logDataChange({
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        action: 'cancel_appointment',
+        tableAffected: 'appointments',
+        recordId: id,
+        newValue: { status: 'cancelled' }
+      });
+    } catch (err) {
+      console.error('[AppointmentsTab] Error cancelando cita:', err);
+    }
   };
 
-  const handleConfirmAppointment = (id: string) => {
-    const previous = db.appointments.find(a => a.id === id);
-    const updated = db.appointments.map(a => 
-      a.id === id ? { ...a, status: 'confirmed' as const } : a
-    );
-
-    const updatedDb = { ...db, appointments: updated };
-    setDb(updatedDb);
-    saveMockDb(updatedDb);
-
-    logDataChange({
-      userId: user.id,
-      userEmail: user.email,
-      userRole: user.role,
-      action: 'confirm_appointment',
-      tableAffected: 'appointments',
-      recordId: id,
-      oldValue: previous,
-      newValue: { ...previous, status: 'confirmed' }
-    });
+  const handleConfirmAppointment = async (id: string) => {
+    try {
+      await setAppointmentStatus(id, 'confirmed');
+      setAppointmentsList(prev => prev.map(a => a.id === id ? { ...a, status: 'confirmed' as const } : a));
+      logDataChange({
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        action: 'confirm_appointment',
+        tableAffected: 'appointments',
+        recordId: id,
+        newValue: { status: 'confirmed' }
+      });
+    } catch (err) {
+      console.error('[AppointmentsTab] Error confirmando cita:', err);
+    }
   };
 
-  const handleBookAppointment = (data: { doctorId: string; date: string; time: string; reason: string; notes?: string }) => {
-    const newAppt: Appointment = {
-      id: `appt-${Date.now()}`,
-      doctor_id: data.doctorId,
-      mother_id: user.id,
-      appointment_date: `${data.date}T${data.time}:00Z`,
-      status: 'pending',
-      reason: data.reason,
-      notes: data.notes
-    };
-
-    const updatedDb = { ...db, appointments: [...db.appointments, newAppt] };
-    setDb(updatedDb);
-    saveMockDb(updatedDb);
-
-    logDataChange({
-      userId: user.id,
-      userEmail: user.email,
-      userRole: user.role,
-      action: 'create_appointment',
-      tableAffected: 'appointments',
-      recordId: newAppt.id,
-      newValue: newAppt
-    });
-
+  const handleBookAppointment = async (data: { doctorId: string; date: string; time: string; reason: string; notes?: string }) => {
+    try {
+      const appt = await bookAppointment(user.id, {
+        doctor_id: data.doctorId,
+        appointment_date: `${data.date}T${data.time}:00Z`,
+        reason: data.reason,
+        notes: data.notes,
+      });
+      setAppointmentsList(prev => [...prev, appt]);
+      logDataChange({
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        action: 'create_appointment',
+        tableAffected: 'appointments',
+        recordId: appt.id,
+        newValue: appt
+      });
+    } catch (err) {
+      console.error('[AppointmentsTab] Error creando cita:', err);
+    }
     setShowAddModal(false);
   };
 
